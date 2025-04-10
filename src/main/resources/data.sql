@@ -2,16 +2,17 @@ CREATE TABLE users (
     id SERIAL PRIMARY KEY,
     keycloak_id VARCHAR(36) UNIQUE NOT NULL,
     email VARCHAR(255) UNIQUE NOT NULL,
-    first_name VARCHAR(100),
-    last_name VARCHAR(100),
-    birth_date DATE,
-    gender VARCHAR(10),
-    height FLOAT,
-    weight FLOAT,
-    activity_level VARCHAR(20),
-    goal VARCHAR(20),
+    first_name VARCHAR(100) NOT NULL,
+    last_name VARCHAR(100) NOT NULL,
+    birth_date DATE NOT NULL,
+    gender VARCHAR(10) ,
+    height FLOAT NOT NULL,
+    weight FLOAT NOT NULL,
+    activity_level VARCHAR(20) ,
+    goal VARCHAR(20) ,
     created_at TIMESTAMP NOT NULL DEFAULT NOW()
 );
+
 
 CREATE TABLE user_allergies (
     user_id INTEGER REFERENCES users(id),

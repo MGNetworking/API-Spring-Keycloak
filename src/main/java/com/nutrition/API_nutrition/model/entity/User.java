@@ -1,10 +1,16 @@
 package com.nutrition.API_nutrition.model.entity;
 
 import jakarta.persistence.*;
+import lombok.AllArgsConstructor;
+import lombok.Data;
+import lombok.NoArgsConstructor;
 
 import java.time.LocalDate;
 import java.util.List;
 
+@Data
+@NoArgsConstructor
+@AllArgsConstructor
 @Entity
 @Table(name = "users")
 public class User {
@@ -12,20 +18,26 @@ public class User {
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
+
     @Column(name = "keycloak_id", unique = true, nullable = false)
-    private String KeycloakId; // lien avec keycloak
+    private String keycloakId; // lien avec keycloak
     @Column(unique = true, nullable = false)
     private String email;
     @Column(name = "first_name", nullable = false)
-    private String firstname;
+    private String firstName;
     @Column(name = "last_name", nullable = false)
-    private String lastname;
+    private String lastName;
     @Column(name = "birth_date", nullable = false)
-    private LocalDate birthdate;
+    private LocalDate birthDate;
 
-    private String gender;
+    @Column(nullable = false)
     private Float height; // en cm
+    @Column(nullable = false)
     private Float weight; // en kg
+
+    @Enumerated(EnumType.STRING)
+    @Column(name = "gender")
+    private Gender gender;
 
     @Enumerated(EnumType.STRING)
     @Column(name = "activity_level")

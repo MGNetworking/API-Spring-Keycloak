@@ -4,7 +4,6 @@ import com.nutrition.API_nutrition.model.dto.UserDtoSave;
 import com.nutrition.API_nutrition.model.entity.User;
 import com.nutrition.API_nutrition.repository.UserRepository;
 import lombok.extern.slf4j.Slf4j;
-import org.modelmapper.ModelMapper;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.dao.TransientDataAccessException;
@@ -30,7 +29,7 @@ public class UserService {
         }
 
         try{
-            return this.userRepository.save(dtoSave.mapping());
+            return this.userRepository.save(dtoSave.UserMapping());
         } catch (DataIntegrityViolationException e){
             // Gère les violations de contraintes (clés uniques, NOT NULL, etc.)
             log.error("Database constraint violation when saving user: {}", e.getMessage());

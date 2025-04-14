@@ -6,8 +6,8 @@ CREATE TABLE users (
     last_name VARCHAR(100) NOT NULL,
     birth_date DATE NOT NULL,
     gender VARCHAR(10) ,
-    height FLOAT NOT NULL,
-    weight FLOAT NOT NULL,
+    height SMALLINT NOT NULL,
+    weight SMALLINT NOT NULL,
     activity_level VARCHAR(20) ,
     goal VARCHAR(20) ,
     created_at TIMESTAMP NOT NULL DEFAULT NOW()

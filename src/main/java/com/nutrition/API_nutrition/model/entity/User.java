@@ -1,6 +1,7 @@
 package com.nutrition.API_nutrition.model.entity;
 
 import jakarta.persistence.*;
+import jakarta.validation.constraints.Positive;
 import lombok.AllArgsConstructor;
 import lombok.Data;
 import lombok.NoArgsConstructor;
@@ -30,10 +31,13 @@ public class User {
     @Column(name = "birth_date", nullable = false)
     private LocalDate birthDate;
 
-    @Column(nullable = false)
-    private Float height; // en cm
-    @Column(nullable = false)
-    private Float weight; // en kg
+    @Column(nullable = false,columnDefinition = "SMALLINT")
+    @Positive(message = "The height is invalid")
+    private short height; // en cm
+
+    @Column(nullable = false, columnDefinition = "SMALLINT")
+    @Positive(message = "The weight is invalid")
+    private short weight; // en kg
 
     @Enumerated(EnumType.STRING)
     @Column(name = "gender")

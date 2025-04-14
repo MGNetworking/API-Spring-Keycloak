@@ -35,13 +35,13 @@ public class UserDtoSave {
 
     @NotNull(message = "Size is required")
     @Positive(message = "The height is invalid")
-    private Float height; // en cm
+    private short height; // en cm
 
     @NotNull(message = "Weight is required")
     @Positive(message = "The weight is invalid")
-    private Float weight; // en kg
+    private short weight; // en kg
 
-    public User mapping(){
+    public User UserMapping(){
         User user = new User();
         user.setKeycloakId(this.keycloakId);
         user.setEmail(this.email);

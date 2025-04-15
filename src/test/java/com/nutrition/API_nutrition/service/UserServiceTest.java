@@ -1,6 +1,7 @@
 package com.nutrition.API_nutrition.service;
 
-import com.nutrition.API_nutrition.model.dto.UserDtoSave;
+import com.nutrition.API_nutrition.model.dto.RegisterRequestDto;
+import com.nutrition.API_nutrition.model.dto.UserResponseDto;
 import com.nutrition.API_nutrition.model.entity.Gender;
 import com.nutrition.API_nutrition.model.entity.User;
 import com.nutrition.API_nutrition.repository.UserRepository;
@@ -33,11 +34,11 @@ class UserServiceTest {
 
         // Arrange
         // Créer un DTO avec toutes les données requises
-        UserDtoSave dto = new UserDtoSave();
+        RegisterRequestDto dto = new RegisterRequestDto();
         dto.setKeycloakId("kc123456");
         dto.setEmail("test@example.com");
-        dto.setFirstname("John");
-        dto.setLastname("Doe");
+        dto.setFirstName("John");
+        dto.setLastName("Doe");
         dto.setBirthdate(LocalDate.of(1990, 1, 1));
         dto.setGender(Gender.MALE);
         dto.setHeight((short) 180);
@@ -51,20 +52,19 @@ class UserServiceTest {
         when(userRepository.save(userCaptor.capture())).thenReturn(savedUser);
 
         // Act
-        User result = userService.createUser(dto);
+        UserResponseDto result = userService.createUser(dto);
 
         // Assert
         // Vérifier que le résultat a l'ID attendu et correspond au mapping
         assertNotNull(result);
         assertEquals(1L, result.getId());
-        assertEquals(dto.getKeycloakId(), result.getKeycloakId());
 
         // Vérifier que l'objet User passé au repository correspond au mapping du DTO
         User capturedUser = userCaptor.getValue();
         assertEquals(dto.getKeycloakId(), capturedUser.getKeycloakId());
         assertEquals(dto.getEmail(), capturedUser.getEmail());
-        assertEquals(dto.getFirstname(), capturedUser.getFirstName());
-        assertEquals(dto.getLastname(), capturedUser.getLastName());
+        assertEquals(dto.getFirstName(), capturedUser.getFirstName());
+        assertEquals(dto.getLastName(), capturedUser.getLastName());
         assertEquals(dto.getBirthdate(), capturedUser.getBirthDate());
         assertEquals(dto.getGender(), capturedUser.getGender());
         assertEquals(dto.getHeight(), capturedUser.getHeight());

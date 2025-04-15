@@ -1,7 +1,8 @@
 package com.nutrition.API_nutrition.controller;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
-import com.nutrition.API_nutrition.model.dto.UserDtoSave;
+import com.nutrition.API_nutrition.model.dto.RegisterRequestDto;
+import com.nutrition.API_nutrition.model.dto.UserResponseDto;
 import com.nutrition.API_nutrition.model.entity.Gender;
 import com.nutrition.API_nutrition.model.entity.User;
 import com.nutrition.API_nutrition.service.UserService;
@@ -24,8 +25,8 @@ import static org.springframework.test.web.servlet.request.MockMvcRequestBuilder
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
-@WebMvcTest(UserController.class)
-class UserControllerTest {
+@WebMvcTest(AuthController.class)
+class AuthControllerTest {
 
     @Autowired
     private MockMvc mockMvc;
@@ -36,16 +37,16 @@ class UserControllerTest {
     @MockitoBean
     private UserService userService;
 
-    private UserDtoSave userDtoValid;
-    private User userExpected;
+    private RegisterRequestDto userDtoValid;
+    private UserResponseDto userResponseDto;
 
     @BeforeEach
     void setUp() {
         // Initialiser un DTO utilisateur valide
-        userDtoValid = new UserDtoSave();
+        userDtoValid = new RegisterRequestDto();
         userDtoValid.setKeycloakId("keycloakId");
-        userDtoValid.setFirstname("Firstname");
-        userDtoValid.setLastname("Lastname");
+        userDtoValid.setFirstName("Firstname");
+        userDtoValid.setLastName("Lastname");
         userDtoValid.setBirthdate(LocalDate.parse("2000-01-15"));
         userDtoValid.setEmail("test@example.com");
         userDtoValid.setGender(Gender.MALE);
@@ -53,20 +54,12 @@ class UserControllerTest {
         userDtoValid.setWeight((byte) 80);
 
         // Initialiser un mock User pour le retour du service
-        userExpected = new User();
-        userExpected.setId(1L);
-        userDtoValid.setKeycloakId(this.userDtoValid.getKeycloakId());
-        userExpected.setFirstName(this.userDtoValid.getFirstname());
-        userExpected.setLastName(this.userDtoValid.getLastname());
-        userExpected.setBirthDate(this.userDtoValid.getBirthdate());
-        userExpected.setEmail(this.userDtoValid.getEmail());
-        userDtoValid.setGender(this.userDtoValid.getGender());
-        userDtoValid.setHeight(this.userDtoValid.getHeight());
-        userDtoValid.setWeight(this.userDtoValid.getWeight());
+        User user = userDtoValid.UserMapping();
+        user.setId(1L);
+        userResponseDto.mappingToUser(user);
 
         // réinitialiser les mocks entre les tests
         Mockito.reset(this.userService);
-
 
     }
 
@@ -75,20 +68,20 @@ class UserControllerTest {
     void shouldCreateUserSuccessfullyWhenDataIsValid() throws Exception {
 
         // Arrange
-        Mockito.when(userService.createUser(ArgumentMatchers.any(UserDtoSave.class)))
-                .thenReturn(userExpected);
+        Mockito.when(this.userService.createUser(ArgumentMatchers.any(RegisterRequestDto.class)))
+                .thenReturn(this.userResponseDto);
 
         // Act & Assert
         mockMvc.perform(post("/api/v1/auth/register")
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(objectMapper.writeValueAsString(userDtoValid)))
                 .andExpect(status().isOk())
-                .andExpect(jsonPath("$.id").value(userExpected.getId()))
-                .andExpect(jsonPath("$.email").value(userExpected.getEmail()));
+                .andExpect(jsonPath("$.id").value(userResponseDto.getId()))
+                .andExpect(jsonPath("$.email").value(userResponseDto.getEmail()));
 
         // Vérifier que le service a été appelé une fois
         verify(userService, times(1))
-                .createUser(ArgumentMatchers.any(UserDtoSave.class));
+                .createUser(ArgumentMatchers.any(RegisterRequestDto.class));
 
     }
 }

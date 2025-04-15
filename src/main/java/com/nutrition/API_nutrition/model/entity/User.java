@@ -7,6 +7,7 @@ import lombok.Data;
 import lombok.NoArgsConstructor;
 
 import java.time.LocalDate;
+import java.time.LocalDateTime;
 import java.util.List;
 
 @Data
@@ -18,18 +19,26 @@ public class User {
 
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
-    private Long id;
+    private Long id;        // ID user dans la BD
 
     @Column(name = "keycloak_id", unique = true, nullable = false)
     private String keycloakId; // lien avec keycloak
+
     @Column(unique = true, nullable = false)
     private String email;
+
+    @Column(name = "user_name", nullable = false)
+    private String username;
     @Column(name = "first_name", nullable = false)
     private String firstName;
     @Column(name = "last_name", nullable = false)
     private String lastName;
+
     @Column(name = "birth_date", nullable = false)
     private LocalDate birthDate;
+
+    @Column(name = "created_at", insertable = false, updatable = false)
+    private LocalDateTime createdAt;    // la date de création
 
     @Column(nullable = false,columnDefinition = "SMALLINT")
     @Positive(message = "The height is invalid")

@@ -9,23 +9,32 @@ import lombok.NoArgsConstructor;
 
 import java.time.LocalDate;
 
+/**
+ * Classe de création d'un utilisateur
+ */
 @Data
 @NoArgsConstructor
 @AllArgsConstructor
-public class UserDtoSave {
+public class RegisterRequestDto {
 
-    @NotBlank(message = "KeycloakId is required")
+    //@NotBlank(message = "KeycloakId is required")
     private String keycloakId;
+
+    @NotBlank(message = "Username is required")
+    private String userName;                    // Nom d'utilisateur
+
+    @NotBlank(message = "Firstname is required")
+    private String firstName;                   // Prénom
+
+    @NotBlank(message = "Lastname is required")
+    private String lastName;                    // Nom de famille
+
+    @NotBlank(message = "password is required")
+    private String password;
 
     @Email(message = "Adresse email invalide")
     @NotBlank(message = "Email is required")
     private String email;
-
-    @NotBlank(message = "Firstname is required")
-    private String firstname;
-
-    @NotBlank(message = "Lastname is required")
-    private String lastname;
 
     @Past(message = "Date of birth is invalid")
     private LocalDate birthdate;
@@ -41,12 +50,18 @@ public class UserDtoSave {
     @Positive(message = "The weight is invalid")
     private short weight; // en kg
 
-    public User UserMapping(){
+    /**
+     * Mapping vers entity
+     *
+     * @return User entity
+     */
+    public User UserMapping() {
         User user = new User();
         user.setKeycloakId(this.keycloakId);
         user.setEmail(this.email);
-        user.setFirstName(this.firstname);
-        user.setLastName(this.lastname);
+        user.setUsername(this.userName);
+        user.setFirstName(this.firstName);
+        user.setLastName(this.lastName);
         user.setBirthDate(this.birthdate);
         user.setGender(this.gender);
         user.setHeight(this.height);

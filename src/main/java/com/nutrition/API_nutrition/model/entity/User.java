@@ -5,10 +5,13 @@ import jakarta.validation.constraints.Positive;
 import lombok.AllArgsConstructor;
 import lombok.Data;
 import lombok.NoArgsConstructor;
+import org.hibernate.annotations.CreationTimestamp;
+import org.hibernate.annotations.UpdateTimestamp;
 
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.util.List;
+import java.util.UUID;
 
 @Data
 @NoArgsConstructor
@@ -18,11 +21,8 @@ import java.util.List;
 public class User {
 
     @Id
-    @GeneratedValue(strategy = GenerationType.IDENTITY)
-    private Long id;        // ID user dans la BD
-
-    @Column(name = "keycloak_id", unique = true, nullable = false)
-    private String keycloakId; // lien avec keycloak
+    @Column(name = "keycloak_id", length = 36)
+    private String keycloakId; // ID Keycloak utilisé comme clé primaire
 
     @Column(unique = true, nullable = false)
     private String email;
@@ -37,8 +37,13 @@ public class User {
     @Column(name = "birth_date", nullable = false)
     private LocalDate birthDate;
 
-    @Column(name = "created_at", insertable = false, updatable = false)
+    @Column(name = "created_at", updatable = false)
+    @CreationTimestamp
     private LocalDateTime createdAt;    // la date de création
+
+    @Column(name = "updated_at")
+    @UpdateTimestamp
+    private LocalDateTime updatedAt;
 
     @Column(nullable = false,columnDefinition = "SMALLINT")
     @Positive(message = "The height is invalid")

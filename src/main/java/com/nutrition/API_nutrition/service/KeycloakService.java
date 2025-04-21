@@ -3,15 +3,16 @@ package com.nutrition.API_nutrition.service;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.nutrition.API_nutrition.config.KeycloakProvider;
+import com.nutrition.API_nutrition.model.dto.RegisterRequestDto;
 import com.nutrition.API_nutrition.model.dto.TokenResponseDto;
 import jakarta.ws.rs.core.Response;
-import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.keycloak.admin.client.Keycloak;
+import org.keycloak.admin.client.resource.UserResource;
 import org.keycloak.representations.idm.CredentialRepresentation;
 import org.keycloak.representations.idm.RoleRepresentation;
 import org.keycloak.representations.idm.UserRepresentation;
-import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 
 import java.net.URI;
@@ -23,69 +24,76 @@ import java.nio.charset.StandardCharsets;
 import java.util.List;
 import java.util.stream.Collectors;
 
+/**
+ * Service responsable de la gestion des utilisateurs dans Keycloak.
+ * Fournit des méthodes pour créer, modifier, supprimer des utilisateurs
+ * et gérer leurs rôles (realm et client).
+ */
 @Slf4j
 @Service
-@RequiredArgsConstructor
 public class KeycloakService {
 
-    private final Keycloak keycloakAdmin;
+    private final KeycloakProvider keycloakProvider;
+    private final HttpClient httpClient;
 
-    @Value("${keycloak.auth-server-url}")
-    private String authServerUrl;
 
-    @Value("${keycloak.realm}")
-    private String realm;
+    public KeycloakService(KeycloakProvider keycloakProvider, HttpClient httpClient) {
+        this.keycloakProvider = keycloakProvider;
+        this.httpClient = httpClient;
 
-    @Value("${keycloak.realm.client-id}")
-    private String clientId;
+    }
 
-    @Value("${keycloak.realm.client-secret}")
-    private String clientSecret;
+    private Keycloak getKc() {
+        return this.keycloakProvider.getKeycloakInstance();
+    }
 
+    private String getRealm() {
+        return this.keycloakProvider.getRealm();
+    }
+
+    private String getUrl() {
+        return this.keycloakProvider.getAuthServerUrl();
+    }
 
     /**
-     * Crée un nouvel utilisateur dans Keycloak
+     * Crée un nouvel utilisateur dans Keycloak est ajout l'ID au DTO
      */
-    public String createUser(String username, String email, String password, String firstName, String lastName) throws JsonProcessingException {
+    public void createUser(RegisterRequestDto dto) {
 
-        // Création d'un objet de représentation pour l'authentification
-        UserRepresentation user = new UserRepresentation();
-        user.setEnabled(true);
-        user.setUsername(username);
-        user.setEmail(email);
-        user.setFirstName(firstName);
-        user.setLastName(lastName);
+        UserRepresentation user = getUserRepresentation(dto);
 
-        // Définir les credentials
-        CredentialRepresentation credential = new CredentialRepresentation();
-        credential.setType(CredentialRepresentation.PASSWORD);
-        credential.setValue(password);
-        credential.setTemporary(false);
+        // récupérer la liste des utilisateurs possède le nom spécifique
+        List<UserRepresentation> users = getKc()
+                .realm(getRealm())
+                .users()
+                .search(user.getUsername(), true);
 
-        // add list credentials
-        user.setCredentials(List.of(credential));
+        // Si l'user n'existe pas
+        if (users.isEmpty()) {
 
-        ObjectMapper mapper = new ObjectMapper();
-        log.info("Utilisateur envoyé à Keycloak: {}", mapper.writeValueAsString(user));
+            Response response = getKc()
+                    .realm(getRealm())
+                    .users()
+                    .create(user);
 
-        // Créer l'utilisateur
-        Response response = keycloakAdmin.realm(realm).users().create(user);
+            log.info("Response : {}", response);
+            if (response.getStatus() < 200 || response.getStatus() >= 300) {
+                throw new RuntimeException("Failed to create user in Keycloak: " + response.getStatusInfo());
+            }
 
-        log.info("Response : {}", response);
+            // Extraire l'ID du nouvel utilisateur
+            String locationPath = response.getLocation().getPath();
+            String userId = locationPath.substring(locationPath.lastIndexOf('/') + 1);
+            log.info("user Id extract : {}", userId);
 
-        // check les réponses
-        if (response.getStatus() < 200 || response.getStatus() >= 300) {
-            log.error("status : {}", response.getStatus());
-            throw new RuntimeException("Failed to create user in Keycloak: " + response.getStatusInfo());
+            // add keycloak id
+            dto.setKeycloakId(userId);
+
+
+        } else {
+            log.info("L'utilisateur existe déjà {}", user.getUsername());
         }
 
-        // Extraire l'ID du nouvel utilisateur
-        String locationPath = response.getLocation().getPath();
-        log.info("locationPath : {}", locationPath);
-        String userId = locationPath.substring(locationPath.lastIndexOf('/') + 1);
-        log.info("user Id extract : {}", userId);
-
-        return userId;
     }
 
     /**
@@ -93,47 +101,64 @@ public class KeycloakService {
      */
     public void addUserRoles(String userId, List<String> roleNames) throws JsonProcessingException {
 
-        log.info("Récupérer les représentations des rôles");
+        log.info("Recherche et récupération des rôles a signer a l'utilisateur ciblé.");
         List<RoleRepresentation> roles = roleNames.stream()
                 .map(roleName -> {
-                    log.info("Le role {}", roleName);
-                    return this.keycloakAdmin.realm(realm).roles().get(roleName).toRepresentation();
+                    log.info("Vérification de l'existant du role suivant en le realm: {}", roleName);
+                    return getKc().realm(getRealm())
+                            .roles()
+                            .get(roleName)
+                            .toRepresentation();
                 })
                 .collect(Collectors.toList());
 
         ObjectMapper mapper = new ObjectMapper();
-        log.info("Liste des roles keycloak: {}", mapper.writeValueAsString(roles));
+        log.info("Liste des a signer a l'utilisateur {}", mapper.writeValueAsString(roles));
 
         // Assigner les rôles à l'utilisateur
-        this.keycloakAdmin.realm(realm).users().get(userId).roles().realmLevel().add(roles);
+        getKc().realm(getRealm())
+                .users()
+                .get(userId)
+                .roles()
+                .realmLevel()
+                .add(roles);
     }
 
     /**
      * Authentifie un utilisateur et retourne les tokens
      */
     public TokenResponseDto login(String username, String password) {
-        try {
-            String tokenUrl = authServerUrl + "/realms/" + realm + "/protocol/openid-connect/token";
 
-            HttpClient httpClient = HttpClient.newHttpClient();
+        try {
+
+            String tokenUrl = getUrl() + "/realms/" + getRealm() + "/protocol/openid-connect/token";
+
+            log.info("Token Url : {}", tokenUrl);
+
+            // création de la requête
             HttpRequest request = HttpRequest.newBuilder()
                     .uri(URI.create(tokenUrl))
                     .header("Content-Type", "application/x-www-form-urlencoded")
                     .POST(HttpRequest.BodyPublishers.ofString(
-                            "client_id=" + clientId +
-                                    "&client_secret=" + clientSecret +
+                            "client_id=" + this.keycloakProvider.getClientId() +
+                                    "&client_secret=" + this.keycloakProvider.getClientSecret() +
                                     "&grant_type=password" +
                                     "&username=" + URLEncoder.encode(username, StandardCharsets.UTF_8) +
                                     "&password=" + URLEncoder.encode(password, StandardCharsets.UTF_8)
                     ))
                     .build();
 
-            HttpResponse<String> response = httpClient.send(request, HttpResponse.BodyHandlers.ofString());
+            // send to keycloak
+            HttpResponse<String> response = this.httpClient.send(
+                    request,
+                    HttpResponse.BodyHandlers.ofString()
+            );
 
             if (response.statusCode() != 200) {
                 throw new RuntimeException("Authentication failed: " + response.body());
             }
 
+            // mapping to JSON response
             ObjectMapper mapper = new ObjectMapper();
             JsonNode node = mapper.readTree(response.body());
 
@@ -143,6 +168,7 @@ public class KeycloakService {
                     node.get("expires_in").asLong(),
                     node.get("refresh_expires_in").asLong()
             );
+
         } catch (Exception e) {
             throw new RuntimeException("Authentication process failed", e);
         }
@@ -153,15 +179,16 @@ public class KeycloakService {
      */
     public TokenResponseDto refreshToken(String refreshToken) {
         try {
-            String tokenUrl = authServerUrl + "/realms/" + realm + "/protocol/openid-connect/token";
+
+            String tokenUrl = getUrl() + "/realms/" + getRealm() + "/protocol/openid-connect/token";
 
             HttpClient httpClient = HttpClient.newHttpClient();
             HttpRequest request = HttpRequest.newBuilder()
                     .uri(URI.create(tokenUrl))
                     .header("Content-Type", "application/x-www-form-urlencoded")
                     .POST(HttpRequest.BodyPublishers.ofString(
-                            "client_id=" + clientId +
-                                    "&client_secret=" + clientSecret +
+                            "client_id=" + this.keycloakProvider.getClientId() +
+                                    "&client_secret=" + this.keycloakProvider.getClientSecret() +
                                     "&grant_type=refresh_token" +
                                     "&refresh_token=" + URLEncoder.encode(refreshToken, StandardCharsets.UTF_8)
                     ))
@@ -187,37 +214,158 @@ public class KeycloakService {
         }
     }
 
+
     /**
-     * Récupère les informations d'un utilisateur
+     * Création d'un objet de représentation pour l'authentification,
+     * permettent de faire un mapping du DTO
+     *
+     * @param dto RegisterRequestDto
+     * @return UserRepresentation
      */
-    public UserRepresentation getUserInfo(String userId) {
-        return keycloakAdmin.realm(realm).users().get(userId).toRepresentation();
+    private static UserRepresentation getUserRepresentation(RegisterRequestDto dto) {
+        UserRepresentation user = new UserRepresentation();
+        user.setEnabled(true);
+        user.setUsername(dto.getUserName());
+        user.setEmail(dto.getEmail());
+        user.setFirstName(dto.getFirstName());
+        user.setLastName(dto.getLastName());
+
+        // Définir les credentials
+        CredentialRepresentation credential = new CredentialRepresentation();
+        credential.setType(CredentialRepresentation.PASSWORD);
+        credential.setValue(dto.getPassword());
+        credential.setTemporary(false);
+
+        // add list credentials
+        user.setCredentials(List.of(credential));
+        return user;
     }
 
     /**
-     * Met à jour les informations d'un utilisateur
+     * Recherche un user par son id dans Keycloak
      */
-    public void updateUser(String userId, UserRepresentation userRepresentation) {
-        keycloakAdmin.realm(realm).users().get(userId).update(userRepresentation);
+    public boolean userExistsById(String userId) {
+
+        try {
+            UserRepresentation user = getKc()
+                    .realm(getRealm())
+                    .users()
+                    .get(userId)
+                    .toRepresentation();
+
+            return user != null;
+
+        } catch (Exception e) {
+            log.error("Erreur lors de la vérification de l'existence de l'utilisateur {}", userId, e);
+            return false;
+        }
+
+    }
+
+    /**
+     * Met à jour les informations d'un utilisateur dans le realm cibler
+     *
+     * @param dto RegisterRequestDto
+     * @return boolean status
+     */
+    public boolean updateUser(RegisterRequestDto dto) {
+
+        try {
+
+            // Vérifier si l'utilisateur existe avant de tenter la mise à jour
+            UserResource userResource = getKc()
+                    .realm(getRealm())
+                    .users()
+                    .get(dto.getKeycloakId());
+
+            // Cette ligne lancera une exception si l'utilisateur n'existe pas
+            UserRepresentation existingUser = userResource.toRepresentation();
+            existingUser.setUsername(dto.getUserName());
+            existingUser.setFirstName(dto.getFirstName());
+            existingUser.setLastName(dto.getLastName());
+            existingUser.setEmail(dto.getEmail());
+
+            // Mise à jour du mot de passe
+            if (dto.getPassword() != null && !dto.getPassword().isEmpty()) {
+                resetPassword(dto.getKeycloakId(), dto.getPassword());
+            }
+
+            userResource.update(existingUser);
+
+            log.info("User update: {}", dto.getUserName());
+            return true;
+
+        } catch (Exception e) {
+            log.error("Erreur lors de la mise à jour de l'utilisateur {}", dto.getUserName(), e);
+            return false;
+        }
+    }
+
+    /**
+     * delete un user dans le realm cibler
+     *
+     * @param userId String
+     */
+    public boolean removeUser(String userId) {
+
+        try {
+            getKc().realm(getRealm())
+                    .users()
+                    .get(userId)
+                    .remove();
+
+            log.info("User ID delete : {}", userId);
+            return true;
+
+        } catch (Exception e) {
+
+            log.error("Erreur lors de la suppression d'un l'utilisateur");
+            return false;
+        }
     }
 
     /**
      * Déconnecte un utilisateur
      */
-    public void logout(String userId) {
-        keycloakAdmin.realm(realm).users().get(userId).logout();
+    public boolean logout(String userId) {
+
+        try {
+            getKc().realm(getRealm())
+                    .users()
+                    .get(userId)
+                    .logout();
+
+            log.info("Fermeture de connexion réussi, ID {}", userId);
+            return true;
+
+        } catch (Exception e) {
+
+            log.error("Erreur lors de fermeture de connexion , ID {}", userId);
+            return false;
+        }
     }
 
     /**
      * Réinitialise le mot de passe d'un utilisateur
      */
     public void resetPassword(String userId, String newPassword) {
-        CredentialRepresentation credential = new CredentialRepresentation();
-        credential.setType(CredentialRepresentation.PASSWORD);
-        credential.setValue(newPassword);
-        credential.setTemporary(false);
 
-        keycloakAdmin.realm(realm).users().get(userId).resetPassword(credential);
+        try {
+
+            CredentialRepresentation credential = new CredentialRepresentation();
+            credential.setType(CredentialRepresentation.PASSWORD);
+            credential.setValue(newPassword);
+            credential.setTemporary(false);
+
+            getKc().realm(getRealm())
+                    .users()
+                    .get(userId)
+                    .resetPassword(credential);
+
+        } catch (Exception e) {
+            log.error("Erreur lors de la modification du password de votre utilisateur, id {} , password {}", userId, newPassword);
+            throw new RuntimeException("Erreur lors de la modification du password id " + userId + " , password " + newPassword);
+        }
     }
 
     /**
@@ -225,7 +373,11 @@ public class KeycloakService {
      */
     public boolean validateToken(String token) {
         try {
-            String tokenUrl = this.authServerUrl + "/realms/" + this.realm + "/protocol/openid-connect/userinfo";
+
+            String tokenUrl = this.keycloakProvider.getAuthServerUrl() +
+                    "/realms/" +
+                    this.keycloakProvider.getRealm() +
+                    "/protocol/openid-connect/userinfo";
 
             HttpClient httpClient = HttpClient.newHttpClient();
             HttpRequest request = HttpRequest.newBuilder()

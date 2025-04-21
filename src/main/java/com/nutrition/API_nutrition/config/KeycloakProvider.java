@@ -1,15 +1,16 @@
 package com.nutrition.API_nutrition.config;
 
+import jakarta.annotation.PostConstruct;
+import lombok.Getter;
 import org.keycloak.OAuth2Constants;
 import org.keycloak.admin.client.Keycloak;
 import org.keycloak.admin.client.KeycloakBuilder;
 import org.springframework.beans.factory.annotation.Value;
-import org.springframework.context.annotation.Bean;
-import org.springframework.context.annotation.Configuration;
+import org.springframework.stereotype.Component;
 
 /**
  * Fournit un bean Keycloak configuré pour interagir avec l'API Admin de Keycloak.
- * Fonctions principales:
+ * Fonctions principales :
  * <ul>
  *     <li>Charge la configuration Keycloak depuis les propriétés de l'application</li>
  *     <li>Crée et configure un client administrateur Keycloak</li>
@@ -18,32 +19,41 @@ import org.springframework.context.annotation.Configuration;
  * <p>
  * Ce bean est utilisé par KeycloakService pour effectuer des opérations administratives sur Keycloak (créer des utilisateurs, gérer les rôles, etc.).
  */
-@Configuration
-public class KeycloakConfig {
+@Component
+public class KeycloakProvider {
 
+    @Getter
     @Value("${keycloak.auth-server-url}")
     private String authServerUrl;
 
+    @Getter
     @Value("${keycloak.realm}")
     private String realm;
 
+    @Getter
     @Value("${keycloak.realm.client-id}")
     private String clientId;
 
+    @Getter
     @Value("${keycloak.realm.client-secret}")
     private String clientSecret;
 
-    /**
-     * Créer un Bean de configuration utilisé dans le Framework
-     * Explication :
-     * Dans la classe KeycloakService Spring injecte l'objet l'instant Keycloak dans keycloakAdmin
-     * qui reçoit la configuration en attente d'être implementer.
-     * <p>
-     * Cela donne à cette classe, la responsabilité de la configuration de l'accès au client keycloak et donne l'accès
-     * cette configuration dans tout l'API.
-     */
-    @Bean
-    public Keycloak keycloakAdmin() {
+    private static Keycloak keycloakInstance = null;
+
+    @PostConstruct
+    public void init() {
+        if (keycloakInstance == null) {
+            keycloakInstance = createKeycloakInstance();
+        }
+    }
+
+    public Keycloak getKeycloakInstance() {
+        init();
+        return keycloakInstance;
+    }
+
+
+    private Keycloak createKeycloakInstance() {
         return KeycloakBuilder.builder()
                 .serverUrl(authServerUrl)
                 .realm(realm)

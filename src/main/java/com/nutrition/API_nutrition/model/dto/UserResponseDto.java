@@ -13,14 +13,15 @@ import java.time.LocalDateTime;
 @Data
 @AllArgsConstructor
 @NoArgsConstructor
-public class UserResponseDto {
+public class UserResponseDto implements ApiResponseData {
 
-    private Long id;                  // ID interne de l'utilisateur dans votre BDD
+    private String keycloakId;          // ID de keycloak
     private String username;            // Nom d'utilisateur
     private String firstName;           // Prénom
     private String lastName;            // Nom de famille
     private String email;               // Email de l'utilisateur
     private LocalDateTime createdAt;    // Date de création du compte avec l'heure minute second
+    private LocalDateTime updatedAt;    // Date de la mise à jour
 
     /**
      * Gere le mapping de l'objet User vers le DTO de cette classe
@@ -30,11 +31,13 @@ public class UserResponseDto {
      */
     public UserResponseDto mappingToUser(User user) {
         UserResponseDto dto = new UserResponseDto();
-        dto.setId(user.getId());
+        dto.setKeycloakId(user.getKeycloakId());
         dto.setUsername(user.getUsername());
         dto.setFirstName(user.getFirstName());
         dto.setLastName(user.getLastName());
+        dto.setEmail(user.getEmail());
         dto.setCreatedAt(user.getCreatedAt());
+        dto.setUpdatedAt(user.getUpdatedAt());
 
         return dto;
     }

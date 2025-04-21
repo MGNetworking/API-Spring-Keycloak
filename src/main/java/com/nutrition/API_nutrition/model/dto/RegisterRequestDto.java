@@ -8,6 +8,7 @@ import lombok.Data;
 import lombok.NoArgsConstructor;
 
 import java.time.LocalDate;
+import java.time.LocalDateTime;
 
 /**
  * Classe de création d'un utilisateur
@@ -15,19 +16,27 @@ import java.time.LocalDate;
 @Data
 @NoArgsConstructor
 @AllArgsConstructor
-public class RegisterRequestDto {
+public class RegisterRequestDto implements ApiResponseData {
 
-    //@NotBlank(message = "KeycloakId is required")
     private String keycloakId;
 
+    /**
+     * Nom d'utilisateur
+     */
     @NotBlank(message = "Username is required")
-    private String userName;                    // Nom d'utilisateur
+    private String userName;
 
+    /**
+     * Prénom
+     */
     @NotBlank(message = "Firstname is required")
-    private String firstName;                   // Prénom
+    private String firstName;
 
+    /**
+     * Nom de famille
+     */
     @NotBlank(message = "Lastname is required")
-    private String lastName;                    // Nom de famille
+    private String lastName;
 
     @NotBlank(message = "password is required")
     private String password;

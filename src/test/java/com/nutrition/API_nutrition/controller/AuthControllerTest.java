@@ -55,7 +55,7 @@ class AuthControllerTest {
 
         // Initialiser un mock User pour le retour du service
         User user = userDtoValid.UserMapping();
-        user.setId(1L);
+        //user.setId(1L);
         userResponseDto.mappingToUser(user);
 
         // réinitialiser les mocks entre les tests
@@ -76,7 +76,7 @@ class AuthControllerTest {
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(objectMapper.writeValueAsString(userDtoValid)))
                 .andExpect(status().isOk())
-                .andExpect(jsonPath("$.id").value(userResponseDto.getId()))
+                //.andExpect(jsonPath("$.id").value(userResponseDto.getId()))
                 .andExpect(jsonPath("$.email").value(userResponseDto.getEmail()));
 
         // Vérifier que le service a été appelé une fois

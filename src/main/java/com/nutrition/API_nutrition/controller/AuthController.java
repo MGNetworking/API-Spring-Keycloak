@@ -42,7 +42,7 @@ public class AuthController {
                     .body(new GenericApiResponse<ApiResponseData>(
                             HttpStatus.CONFLICT,
                             "The user is already exists",
-                            "/api/v1/auth/register",
+                            "/api/v1/auth",
                             userDto
                     ));
         }

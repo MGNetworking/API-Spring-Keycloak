@@ -16,7 +16,7 @@ import java.time.LocalDateTime;
 public class UserResponseDto implements ApiResponseData {
 
     private String keycloakId;          // ID de keycloak
-    private String username;            // Nom d'utilisateur
+    private String userName;            // Nom d'utilisateur
     private String firstName;           // Prénom
     private String lastName;            // Nom de famille
     private String email;               // Email de l'utilisateur
@@ -32,7 +32,7 @@ public class UserResponseDto implements ApiResponseData {
     public UserResponseDto mappingToUser(User user) {
         UserResponseDto dto = new UserResponseDto();
         dto.setKeycloakId(user.getKeycloakId());
-        dto.setUsername(user.getUsername());
+        dto.setUserName(user.getUsername());
         dto.setFirstName(user.getFirstName());
         dto.setLastName(user.getLastName());
         dto.setEmail(user.getEmail());

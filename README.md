@@ -15,7 +15,7 @@ Launch of Spring Sans profile
 Launching unit tests
 
 ````bash
-./mvnw test
+./mvnw clean test -Dspring.profiles.active=test
 ````
 
 [H2 Access IP](http://localhost:8080/h2-console)

@@ -1,6 +1,5 @@
 package com.nutrition.API_nutrition.controller;
 
-import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.nutrition.API_nutrition.model.dto.RegisterRequestDto;
 import com.nutrition.API_nutrition.model.dto.TokenResponseDto;
@@ -19,16 +18,12 @@ import org.springframework.test.context.ActiveProfiles;
 import org.springframework.test.context.TestPropertySource;
 import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.test.web.servlet.MockMvc;
-import org.springframework.test.web.servlet.MvcResult;
 
 import java.time.LocalDate;
 import java.util.Optional;
 
-import static org.junit.jupiter.api.Assertions.assertEquals;
-import static org.junit.jupiter.api.Assertions.assertTrue;
-import static org.mockito.Mockito.any;
-import static org.mockito.Mockito.when;
-import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
+import static org.mockito.Mockito.*;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.*;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.*;
 
 @WebMvcTest(AuthController.class)
@@ -88,4 +83,74 @@ class AuthControllerTest {
                 .andExpect(jsonPath("$.data.userName").value("Username"));
 
     }
+
+    @Test
+    @DisplayName("Devrait mettre à jour un utilisateur avec succès")
+    void shouldUpdateUserSuccessfully() throws Exception {
+        // Setup des données de test
+        RegisterRequestDto requestDto = new RegisterRequestDto();
+        requestDto.setKeycloakId("keycloak-id");
+        requestDto.setUserName("Username");
+        requestDto.setFirstName("Firstname");
+        requestDto.setLastName("Lastname");
+        requestDto.setPassword("new-secret");
+        requestDto.setEmail("newemail@example.com");
+        requestDto.setBirthdate(LocalDate.parse("2000-01-15"));
+        requestDto.setGender(Gender.MALE);
+        requestDto.setHeight((short) 180);
+        requestDto.setWeight((byte) 80);
+
+        UserResponseDto updatedUser = new UserResponseDto();
+        updatedUser.setUserName("Username");
+        updatedUser.setKeycloakId("keycloak-id");
+
+        // Mocks
+        when(keycloakService.userExistsById("keycloak-id")).thenReturn(true);
+        when(userService.updateUser(any())).thenReturn(updatedUser);
+
+        // Act & Assert
+        mockMvc.perform(put("/api/v1/auth/user")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(requestDto)))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.status").value("OK"))
+                .andExpect(jsonPath("$.data.userName").value("Username"));
+    }
+
+    @Test
+    @DisplayName("Devrait supprimer un utilisateur avec succès")
+    void shouldDeleteUserSuccessfully() throws Exception {
+        String userId = "test-user-id";
+
+        // Mocks
+        when(keycloakService.userExistsById(userId)).thenReturn(true);
+        doNothing().when(userService).deleteUser(userId);
+
+        // Act & Assert
+        mockMvc.perform(delete("/api/v1/auth/{userId}", userId))
+                .andExpect(status().isNoContent())
+                .andExpect(jsonPath("$.status").value("NO_CONTENT"));
+    }
+
+    @Test
+    @DisplayName("Devrait récupérer un utilisateur avec succès")
+    void shouldGetUserSuccessfully() throws Exception {
+        String userId = "test-user-id";
+
+        User user = new User();
+        user.setUsername("Username");
+        UserResponseDto userResponseDto = new UserResponseDto().mappingToUser(user);
+
+        // Mocks
+        when(keycloakService.userExistsById(userId)).thenReturn(true);
+        when(userService.getuser(userId)).thenReturn(Optional.of(user));
+
+        // Act & Assert
+        mockMvc.perform(get("/api/v1/auth/{userId}", userId))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.status").value("OK"))
+                .andExpect(jsonPath("$.data.userName").value("Username"));
+    }
+
+
 }

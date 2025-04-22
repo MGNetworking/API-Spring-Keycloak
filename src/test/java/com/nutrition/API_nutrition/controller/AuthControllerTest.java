@@ -8,6 +8,7 @@ import com.nutrition.API_nutrition.model.entity.Gender;
 import com.nutrition.API_nutrition.model.entity.User;
 import com.nutrition.API_nutrition.service.KeycloakService;
 import com.nutrition.API_nutrition.service.UserService;
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -22,7 +23,8 @@ import org.springframework.test.web.servlet.MockMvc;
 import java.time.LocalDate;
 import java.util.Optional;
 
-import static org.mockito.Mockito.*;
+import static org.mockito.Mockito.doNothing;
+import static org.mockito.Mockito.when;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.*;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.*;
 
@@ -46,49 +48,11 @@ class AuthControllerTest {
     @MockitoBean
     private KeycloakService keycloakService;
 
-    @Test
-    @DisplayName("Devrait créer un utilisateur avec succès quand les données sont valides")
-    void shouldCreateUserSuccessfullyWhenDataIsValid() throws Exception {
+    RegisterRequestDto requestDto;
 
-        RegisterRequestDto requestDto = new RegisterRequestDto();
-        requestDto = new RegisterRequestDto();
-        requestDto.setUserName("Username");
-        requestDto.setFirstName("Firstname");
-        requestDto.setLastName("Lastname");
-        requestDto.setPassword("super-secret");
-        requestDto.setBirthdate(LocalDate.parse("2000-01-15"));
-        requestDto.setEmail("test@example.com");
-        requestDto.setGender(Gender.MALE);
-        requestDto.setHeight((short) 180);
-        requestDto.setWeight((byte) 80);
-
-        User user = requestDto.UserMapping();
-        UserResponseDto userResponse = new UserResponseDto().mappingToUser(user);
-
-        TokenResponseDto token = new TokenResponseDto();
-        token.setAccessToken("mocked-jwt");
-
-        // mocks
-        when(keycloakService.userExistsById("test-keycloak-id")).thenReturn(false);
-        when(userService.createUser(any())).thenReturn(userResponse);
-        when(keycloakService.login("Username", "super-secret")).thenReturn(token);
-
-        // Act & Assert
-        mockMvc.perform(post("/api/v1/auth")
-                        .contentType(MediaType.APPLICATION_JSON)
-                        .content(this.objectMapper.writeValueAsString(requestDto)))
-                .andExpect(status().isCreated())
-                .andExpect(header().string("Authorization", "Bearer mocked-jwt"))
-                .andExpect(jsonPath("$.status").value("CREATED"))
-                .andExpect(jsonPath("$.data.userName").value("Username"));
-
-    }
-
-    @Test
-    @DisplayName("Devrait mettre à jour un utilisateur avec succès")
-    void shouldUpdateUserSuccessfully() throws Exception {
-        // Setup des données de test
-        RegisterRequestDto requestDto = new RegisterRequestDto();
+    @BeforeEach
+    public void init() {
+        this.requestDto = new RegisterRequestDto();
         requestDto.setKeycloakId("keycloak-id");
         requestDto.setUserName("Username");
         requestDto.setFirstName("Firstname");
@@ -99,19 +63,52 @@ class AuthControllerTest {
         requestDto.setGender(Gender.MALE);
         requestDto.setHeight((short) 180);
         requestDto.setWeight((byte) 80);
+    }
 
-        UserResponseDto updatedUser = new UserResponseDto();
-        updatedUser.setUserName("Username");
-        updatedUser.setKeycloakId("keycloak-id");
+    @Test
+    @DisplayName("Devrait créer un utilisateur avec succès quand les données sont valides")
+    void shouldCreateUserSuccessfullyWhenDataIsValid() throws Exception {
+
+        // Arrange
+        User user = this.requestDto.UserMapping();
+        UserResponseDto userResponse = new UserResponseDto().mappingToUser(user);
+
+        TokenResponseDto token = new TokenResponseDto();
+        token.setAccessToken("mocked-jwt");
+
+        when(keycloakService.userExistsById("test-keycloak-id")).thenReturn(false);
+        when(userService.createUser(this.requestDto)).thenReturn(userResponse);
+        when(keycloakService.login(
+                this.requestDto.getUserName(),
+                this.requestDto.getPassword())).thenReturn(token);
+
+        // Act & Assert
+        mockMvc.perform(post("/api/v1/auth")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(this.objectMapper.writeValueAsString(this.requestDto)))
+                .andExpect(status().isCreated())
+                .andExpect(header().string("Authorization", "Bearer mocked-jwt"))
+                .andExpect(jsonPath("$.status").value("CREATED"))
+                .andExpect(jsonPath("$.data.userName").value("Username"));
+
+    }
+
+    @Test
+    @DisplayName("Devrait mettre à jour un utilisateur avec succès")
+    void shouldUpdateUserSuccessfully() throws Exception {
+
+        // Arrange
+        UserResponseDto updatedUser = new UserResponseDto()
+                .mappingToUser(this.requestDto.UserMapping());
 
         // Mocks
-        when(keycloakService.userExistsById("keycloak-id")).thenReturn(true);
-        when(userService.updateUser(any())).thenReturn(updatedUser);
+        when(keycloakService.userExistsById(this.requestDto.getKeycloakId())).thenReturn(true);
+        when(userService.updateUser(this.requestDto)).thenReturn(updatedUser);
 
         // Act & Assert
         mockMvc.perform(put("/api/v1/auth/user")
                         .contentType(MediaType.APPLICATION_JSON)
-                        .content(objectMapper.writeValueAsString(requestDto)))
+                        .content(objectMapper.writeValueAsString(this.requestDto)))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.status").value("OK"))
                 .andExpect(jsonPath("$.data.userName").value("Username"));
@@ -120,9 +117,9 @@ class AuthControllerTest {
     @Test
     @DisplayName("Devrait supprimer un utilisateur avec succès")
     void shouldDeleteUserSuccessfully() throws Exception {
-        String userId = "test-user-id";
 
-        // Mocks
+        // Arrange
+        String userId = "test-user-id";
         when(keycloakService.userExistsById(userId)).thenReturn(true);
         doNothing().when(userService).deleteUser(userId);
 
@@ -135,15 +132,11 @@ class AuthControllerTest {
     @Test
     @DisplayName("Devrait récupérer un utilisateur avec succès")
     void shouldGetUserSuccessfully() throws Exception {
+
+        // Arrange
         String userId = "test-user-id";
-
-        User user = new User();
-        user.setUsername("Username");
-        UserResponseDto userResponseDto = new UserResponseDto().mappingToUser(user);
-
-        // Mocks
         when(keycloakService.userExistsById(userId)).thenReturn(true);
-        when(userService.getuser(userId)).thenReturn(Optional.of(user));
+        when(userService.getuser(userId)).thenReturn(Optional.of(this.requestDto.UserMapping()));
 
         // Act & Assert
         mockMvc.perform(get("/api/v1/auth/{userId}", userId))

@@ -60,6 +60,7 @@ class UserServiceTest {
         // Arrange : créer les objet de simulation
         // Simuler les appels à KeycloakService (void methods)
         doNothing().when(keycloakService).createUser(any());
+
         doNothing().when(keycloakService).addUserRoles(anyString(), anyList());
 
         // Simuler la sauvegarde en base

@@ -62,7 +62,7 @@ public class KeycloakService {
 
         UserRepresentation user = getUserRepresentation(dto);
 
-        // récupérer la liste des utilisateurs possède le nom spécifique
+        // récupérer la liste des utilisateurs possèdent un nom spécifique
         List<UserRepresentation> users = getKc()
                 .realm(getRealm())
                 .users()
@@ -286,8 +286,8 @@ public class KeycloakService {
             existingUser.setEmail(dto.getEmail());
 
             // Mise à jour du mot de passe
-            if (dto.getPassword() != null && !dto.getPassword().isEmpty()) {
-                resetPassword(dto.getKeycloakId(), dto.getPassword());
+            if (dto.getPassword() == null || dto.getPassword().isEmpty()) {
+                throw new RuntimeException("Le password de l'utilisateur est absent ou manquant!");
             }
 
             userResource.update(existingUser);

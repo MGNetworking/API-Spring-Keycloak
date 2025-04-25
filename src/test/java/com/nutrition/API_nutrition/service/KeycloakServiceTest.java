@@ -10,9 +10,8 @@ import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.keycloak.admin.client.Keycloak;
-import org.keycloak.admin.client.resource.RealmResource;
-import org.keycloak.admin.client.resource.UserResource;
-import org.keycloak.admin.client.resource.UsersResource;
+import org.keycloak.admin.client.resource.*;
+import org.keycloak.representations.idm.RoleRepresentation;
 import org.keycloak.representations.idm.UserRepresentation;
 import org.mockito.ArgumentCaptor;
 import org.mockito.InjectMocks;
@@ -22,7 +21,10 @@ import org.mockito.junit.jupiter.MockitoExtension;
 import java.net.URI;
 import java.net.http.HttpClient;
 import java.time.LocalDate;
+import java.util.Arrays;
 import java.util.Collections;
+import java.util.List;
+import java.util.concurrent.atomic.AtomicBoolean;
 
 import static org.junit.jupiter.api.Assertions.*;
 import static org.mockito.ArgumentMatchers.*;
@@ -42,6 +44,15 @@ class KeycloakServiceTest {
 
     @Mock
     private Keycloak keycloakMock;
+
+    @Mock
+    private RoleMappingResource roleMappingResource;
+
+    @Mock
+    private RoleScopeResource roleScopeResource;
+
+    @Mock
+    private RolesResource rolesResource;
 
     RegisterRequestDto dto;
     UserRepresentation userRepresentation;
@@ -134,7 +145,52 @@ class KeycloakServiceTest {
     }
 
     @Test
-    void addUserRoles() {
+    void addUserRoles_shouldAddRoleUserSuccessfully() {
+
+        // Arrange
+        String userId = "id-test";
+        String role1 = "role1", role2 = "role2";
+        List<String> roleName = Arrays.asList(role1, role2);
+
+        // simule la recherche et récupération de la liste des role
+        RoleResource roleResource1 = mock(RoleResource.class);
+        RoleResource roleResource2 = mock(RoleResource.class);
+
+        RoleRepresentation roleRep1 = new RoleRepresentation();
+        RoleRepresentation roleRep2 = new RoleRepresentation();
+        roleRep1.setName(role1);
+        roleRep2.setName(role2);
+
+        when(this.rolesResource.get(role1)).thenReturn(roleResource1);
+        when(this.rolesResource.get(role2)).thenReturn(roleResource2);
+        when(this.realmResource.roles()).thenReturn(this.rolesResource);
+
+        when(roleResource1.toRepresentation()).thenReturn(roleRep1);
+        when(roleResource2.toRepresentation()).thenReturn(roleRep2);
+
+        // Simulation de la partie assignation des roles
+        when(this.keycloakMock.realm(anyString())).thenReturn(this.realmResource);
+        when(this.realmResource.users()).thenReturn(this.usersResource);
+        when(this.usersResource.get(userId)).thenReturn(this.userResource);
+        when(this.userResource.roles()).thenReturn(this.roleMappingResource);
+        when(this.roleMappingResource.realmLevel()).thenReturn(this.roleScopeResource);
+
+        // Act
+        this.keycloakService.addUserRoles(userId, roleName);
+
+        // Assert
+        // Création d'objet pour capter les infos passer la methode add
+        ArgumentCaptor<List<RoleRepresentation>> rolesCaptor = ArgumentCaptor.forClass(List.class);
+        verify(this.roleScopeResource).add(rolesCaptor.capture());
+
+        // on récupére les valeurs capturées
+        List<RoleRepresentation> list = rolesCaptor.getValue();
+
+        // on les vérifie la correspondance des éléments
+        assertEquals(roleName.size(), list.size());
+        assertEquals(roleName.get(0), list.get(0).getName());
+        assertEquals(roleName.get(1), list.get(1).getName());
+
     }
 
     @Test
@@ -175,8 +231,8 @@ class KeycloakServiceTest {
     }
 
     @Test
-    @DisplayName("Devrait retourner false quand l'utilisateur n'existe pas")
-    void updateUser_shouldReturnFalseWhenUserDoesNotExist() {
+    @DisplayName("Devrait lancer une exception quand le mot de passe est null")
+    void updateUser_shouldThrowExceptionWhenPasswordIsNull() {
 
         // Arrange - Mocks pour la chaîne d'appels Keycloak
         when(realmResource.users()).thenReturn(usersResource);
@@ -184,13 +240,14 @@ class KeycloakServiceTest {
         when(usersResource.get(anyString())).thenReturn(userResource);
         when(userResource.toRepresentation()).thenReturn(this.userRepresentation);
 
-        // mise null pour le test
         dto.setPassword(null);
 
-        // Act & Assert
+        // Act
         boolean status = this.keycloakService.updateUser(this.dto);
-        assertFalse(status); // La méthode retourne false, car l'exception est attrapée
-        verify(userResource, never()).update(any()); // L'update ne devrait jamais être appelée
+
+        // Assert
+        assertFalse(status);
+        verify(userResource, never()).update(any());
     }
 
     @Test

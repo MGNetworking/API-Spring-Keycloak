@@ -99,7 +99,7 @@ public class KeycloakService {
     /**
      * Ajoute des rôles à un utilisateur
      */
-    public void addUserRoles(String userId, List<String> roleNames) throws JsonProcessingException {
+    public void addUserRoles(String userId, List<String> roleNames) {
 
         log.info("Recherche et récupération des rôles a signer a l'utilisateur ciblé.");
         List<RoleRepresentation> roles = roleNames.stream()
@@ -112,8 +112,12 @@ public class KeycloakService {
                 })
                 .collect(Collectors.toList());
 
-        ObjectMapper mapper = new ObjectMapper();
-        log.info("Liste des a signer a l'utilisateur {}", mapper.writeValueAsString(roles));
+        try {
+            ObjectMapper mapper = new ObjectMapper();
+            log.info("Liste des a signer a l'utilisateur {}", mapper.writeValueAsString(roles));
+        } catch (JsonProcessingException e) {
+            log.error("Erreur dans le parsing pour l'affichage des rôles ");
+        }
 
         // Assigner les rôles à l'utilisateur
         getKc().realm(getRealm())

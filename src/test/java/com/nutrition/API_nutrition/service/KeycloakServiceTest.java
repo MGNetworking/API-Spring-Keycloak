@@ -4,7 +4,6 @@ import com.nutrition.API_nutrition.config.KeycloakProvider;
 import com.nutrition.API_nutrition.model.dto.RegisterRequestDto;
 import com.nutrition.API_nutrition.model.entity.Gender;
 import jakarta.ws.rs.core.Response;
-import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -24,7 +23,6 @@ import java.time.LocalDate;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
-import java.util.concurrent.atomic.AtomicBoolean;
 
 import static org.junit.jupiter.api.Assertions.*;
 import static org.mockito.ArgumentMatchers.*;
@@ -54,12 +52,18 @@ class KeycloakServiceTest {
     @Mock
     private RolesResource rolesResource;
 
-    RegisterRequestDto dto;
+    @Mock
     UserRepresentation userRepresentation;
+    @Mock
     RealmResource realmResource;
+    @Mock
     UsersResource usersResource;
+    @Mock
     UserResource userResource;
+    @Mock
     Response response;
+
+    RegisterRequestDto dto;
 
     @BeforeEach
     void setUp() {
@@ -86,16 +90,6 @@ class KeycloakServiceTest {
         lenient().when(this.keycloakProvider.getKeycloakInstance()).thenReturn(this.keycloakMock);
         lenient().when(this.keycloakProvider.getRealm()).thenReturn("Test-realm");
         lenient().when(keycloakProvider.getAuthServerUrl()).thenReturn("http://localhost:8080/auth");
-
-        this.realmResource = mock(RealmResource.class);
-        this.usersResource = mock(UsersResource.class);
-        this.userResource = mock(UserResource.class);
-        this.response = mock(Response.class);
-
-    }
-
-    @AfterEach
-    void tearDown() {
     }
 
     @Test
@@ -225,8 +219,7 @@ class KeycloakServiceTest {
 
         // Assert
         assertTrue(status);
-
-        // Vérifier qu'update a été appelé avec l'objet UserRepresentation
+        // Vérifier l'appel
         verify(this.userResource).update(this.userRepresentation);
     }
 
@@ -247,6 +240,28 @@ class KeycloakServiceTest {
 
         // Assert
         assertFalse(status);
+        // Vérifier qu'update n'est jamais appelée
+        verify(userResource, never()).update(any());
+    }
+
+    @Test
+    @DisplayName("Devrait lancer une exception quand le mot de passe est vide")
+    void updateUser_shouldThrowExceptionWhenPasswordIsEmpty() {
+
+        // Arrange - Mocks pour la chaîne d'appels Keycloak
+        when(realmResource.users()).thenReturn(usersResource);
+        when(keycloakMock.realm(anyString())).thenReturn(realmResource);
+        when(usersResource.get(anyString())).thenReturn(userResource);
+        when(userResource.toRepresentation()).thenReturn(this.userRepresentation);
+
+        dto.setPassword("");
+
+        // Act
+        boolean status = this.keycloakService.updateUser(this.dto);
+
+        // Assert
+        assertFalse(status);
+        // Vérifier qu'update n'est jamais appelée
         verify(userResource, never()).update(any());
     }
 

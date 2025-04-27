@@ -2,14 +2,18 @@ package com.nutrition.API_nutrition.service;
 
 import com.nutrition.API_nutrition.config.KeycloakProvider;
 import com.nutrition.API_nutrition.model.dto.RegisterRequestDto;
+import com.nutrition.API_nutrition.model.dto.TokenResponseDto;
 import com.nutrition.API_nutrition.model.entity.Gender;
+import com.nutrition.API_nutrition.util.HttpClientConfig;
 import jakarta.ws.rs.core.Response;
+import lombok.extern.slf4j.Slf4j;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.keycloak.admin.client.Keycloak;
 import org.keycloak.admin.client.resource.*;
+import org.keycloak.representations.idm.CredentialRepresentation;
 import org.keycloak.representations.idm.RoleRepresentation;
 import org.keycloak.representations.idm.UserRepresentation;
 import org.mockito.ArgumentCaptor;
@@ -17,8 +21,11 @@ import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 
+import java.io.IOException;
 import java.net.URI;
 import java.net.http.HttpClient;
+import java.net.http.HttpRequest;
+import java.net.http.HttpResponse;
 import java.time.LocalDate;
 import java.util.Arrays;
 import java.util.Collections;
@@ -28,9 +35,11 @@ import static org.junit.jupiter.api.Assertions.*;
 import static org.mockito.ArgumentMatchers.*;
 import static org.mockito.Mockito.*;
 
+@Slf4j
 @ExtendWith(MockitoExtension.class)
 class KeycloakServiceTest {
 
+    // Mock pour la classe de service KeycloakService
     @InjectMocks
     private KeycloakService keycloakService;
 
@@ -39,6 +48,11 @@ class KeycloakServiceTest {
 
     @Mock
     private HttpClient httpClient;
+
+    @Mock
+    private HttpClientConfig httpClientConfig;
+
+    // autre mock
 
     @Mock
     private Keycloak keycloakMock;
@@ -54,12 +68,16 @@ class KeycloakServiceTest {
 
     @Mock
     UserRepresentation userRepresentation;
+
     @Mock
     RealmResource realmResource;
+
     @Mock
     UsersResource usersResource;
+
     @Mock
     UserResource userResource;
+
     @Mock
     Response response;
 
@@ -139,6 +157,7 @@ class KeycloakServiceTest {
     }
 
     @Test
+    @DisplayName("Devrait ajouter les role à l'utilisateur avec succès")
     void addUserRoles_shouldAddRoleUserSuccessfully() {
 
         // Arrange
@@ -188,16 +207,201 @@ class KeycloakServiceTest {
     }
 
     @Test
-    void login() {
+    @DisplayName("Devrait authentifier l'utilisateur avec succès")
+    void login_shouldAuthenticateSuccessfully() {
+
+        try {
+            // Arrange
+            String username = "Username";
+            String password = "password";
+            String responseBody = "{\"access_token\":\"test-token\",\"refresh_token\":\"refresh-token\",\"expires_in\":300,\"refresh_expires_in\":1800}";
+
+            HttpClientConfig httpClientConfig = mock(HttpClientConfig.class);
+            HttpRequest request = mock(HttpRequest.class);
+            HttpResponse<String> response = mock(HttpResponse.class);
+
+            // Configuration des comportements
+            when(httpClientConfig.postRequest(
+                    anyString(), anyString(), anyString()))
+                    .thenReturn(request);
+
+            when(response.statusCode()).thenReturn(200);
+            when(response.body()).thenReturn(responseBody);
+
+            when(httpClient.send(
+                    any(HttpRequest.class),
+                    any(HttpResponse.BodyHandler.class)))
+                    .thenReturn(response);
+
+            // Act
+            TokenResponseDto dtoResult = this.keycloakService.login(username, password);
+
+            // Assert
+            assertNotNull(dto);
+            assertEquals("test-token", dtoResult.getAccessToken());
+            assertEquals("refresh-token", dtoResult.getRefreshToken());
+            assertEquals(300L, dtoResult.getExpiresIn());
+            assertEquals(1800L, dtoResult.getRefreshExpiresIn());
+
+
+        } catch (Exception e) {
+            log.error("Erreur dans le test KeycloakServiceTest -> login {}", e.getMessage());
+        }
+
     }
 
     @Test
-    void refreshToken() {
+    @DisplayName("Devrait pas authentifier l'utilisateur")
+    void login_shouldNotAuthenticateSuccessfully() throws IOException, InterruptedException {
+
+
+        // Arrange
+        String username = "Username";
+        String password = "password";
+        String errorResponseBody = "{\"error\":\"invalid_grant\",\"error_description\":\"Invalid user credentials\"}";
+
+        HttpClientConfig httpClientConfig = mock(HttpClientConfig.class);
+        HttpRequest request = mock(HttpRequest.class);
+        HttpResponse<String> response = mock(HttpResponse.class);
+
+        // Configuration des comportements
+        when(httpClientConfig.postRequest(
+                anyString(), anyString(), anyString()))
+                .thenReturn(request);
+
+        when(response.statusCode()).thenReturn(401);
+        when(response.body()).thenReturn(errorResponseBody);
+
+        when(httpClient.send(
+                any(HttpRequest.class),
+                any(HttpResponse.BodyHandler.class)))
+                .thenReturn(response);
+
+        // Act & Assert
+        RuntimeException exception = assertThrows(RuntimeException.class, () -> {
+            keycloakService.login(username, password);
+        });
+
+        // Vérification moins stricte du message d'erreur
+        assertTrue(exception.getMessage().contains("Authentication process failed"),
+                "Le message d'erreur devrait contenir 'Authentication failed'");
+
+        // Vérifier que l'exception contient bien la cause originale
+        assertNotNull(exception.getCause(), "L'exception devrait avoir une cause");
 
     }
 
     @Test
-    void userExistsById() {
+    @DisplayName("Devrait rafraîchir le token avec succès")
+    void refreshToken_shouldRefreshTokenSuccessfully() throws IOException, InterruptedException {
+        // Arrange
+        String refreshToken = "refresh-token";
+        String responseBody = "{\"access_token\":\"new-test-token\",\"refresh_token\":\"new-refresh-token\",\"expires_in\":300,\"refresh_expires_in\":1800}";
+
+        HttpRequest request = mock(HttpRequest.class);
+        HttpResponse<String> response = mock(HttpResponse.class);
+
+        // Configuration des comportements
+        when(this.httpClientConfig.postRequest(
+                anyString(), anyString(), anyString()))
+                .thenReturn(request);
+
+        when(response.statusCode()).thenReturn(200);
+        when(response.body()).thenReturn(responseBody);
+
+        when(httpClient.send(
+                any(HttpRequest.class),
+                any(HttpResponse.BodyHandler.class)))
+                .thenReturn(response);
+
+        // Act
+        TokenResponseDto dtoResult = keycloakService.refreshToken(refreshToken);
+
+        // Assert
+        assertNotNull(dtoResult);
+        assertEquals("new-test-token", dtoResult.getAccessToken());
+        assertEquals("new-refresh-token", dtoResult.getRefreshToken());
+        assertEquals(300L, dtoResult.getExpiresIn());
+        assertEquals(1800L, dtoResult.getRefreshExpiresIn());
+    }
+
+    @Test
+    @DisplayName("Devrait échouer lors du rafraîchissement du token")
+    void refreshToken_shouldFailToRefreshToken() throws IOException, InterruptedException {
+        // Arrange
+        String refreshToken = "invalid-refresh-token";
+        String errorResponseBody = "{\"error\":\"invalid_grant\",\"error_description\":\"Invalid refresh token\"}";
+
+        HttpClientConfig httpClientConfig = mock(HttpClientConfig.class);
+        HttpRequest request = mock(HttpRequest.class);
+        HttpResponse<String> response = mock(HttpResponse.class);
+
+        // Configuration des comportements
+        when(httpClientConfig.postRequest(
+                anyString(), anyString(), anyString()))
+                .thenReturn(request);
+
+        when(response.statusCode()).thenReturn(400);
+        when(response.body()).thenReturn(errorResponseBody);
+
+        when(httpClient.send(
+                any(HttpRequest.class),
+                any(HttpResponse.BodyHandler.class)))
+                .thenReturn(response);
+
+        // Act & Assert
+        RuntimeException exception = assertThrows(RuntimeException.class, () -> {
+            keycloakService.refreshToken(refreshToken);
+        });
+
+        // Vérification du message d'erreur
+        assertTrue(exception.getMessage().contains("Token refresh process failed"),
+                "Le message d'erreur devrait contenir 'Token refresh process failed'");
+    }
+
+
+    @Test
+    @DisplayName("Devrait vérifier que l'utilisateur existe par son ID avec succès")
+    void userExistsById_shouldReturnTrueWhenUserExists() {
+        // Arrange
+        String userId = "existing-user-id";
+
+        when(keycloakMock.realm(anyString())).thenReturn(realmResource);
+        when(realmResource.users()).thenReturn(usersResource);
+        when(usersResource.get(userId)).thenReturn(userResource);
+        when(userResource.toRepresentation()).thenReturn(userRepresentation);
+
+        // Act
+        boolean result = keycloakService.userExistsById(userId);
+
+        // Assert
+        assertTrue(result);
+        verify(keycloakMock).realm("Test-realm");
+        verify(realmResource).users();
+        verify(usersResource).get(userId);
+        verify(userResource).toRepresentation();
+    }
+
+    @Test
+    @DisplayName("Devrait retourner faux quand l'utilisateur n'existe pas par son ID")
+    void userExistsById_shouldReturnFalseWhenUserDoesNotExist() {
+        // Arrange
+        String userId = "non-existing-user-id";
+
+        when(keycloakMock.realm(anyString())).thenReturn(realmResource);
+        when(realmResource.users()).thenReturn(usersResource);
+        when(usersResource.get(userId)).thenReturn(userResource);
+        when(userResource.toRepresentation()).thenThrow(new RuntimeException("User not found"));
+
+        // Act
+        boolean result = keycloakService.userExistsById(userId);
+
+        // Assert
+        assertFalse(result);
+        verify(keycloakMock).realm("Test-realm");
+        verify(realmResource).users();
+        verify(usersResource).get(userId);
+        verify(userResource).toRepresentation();
     }
 
     @Test
@@ -266,18 +470,193 @@ class KeycloakServiceTest {
     }
 
     @Test
-    void removeUser() {
+    @DisplayName("Devrait supprimer l'utilisateur avec succès")
+    void removeUser_shouldRemoveUserSuccessfully() {
+        // Arrange
+        String userId = "user-to-delete";
+
+        when(keycloakMock.realm(anyString())).thenReturn(realmResource);
+        when(realmResource.users()).thenReturn(usersResource);
+        when(usersResource.get(userId)).thenReturn(userResource);
+
+        // Act
+        boolean result = keycloakService.removeUser(userId);
+
+        // Assert
+        assertTrue(result);
+        verify(keycloakMock).realm("Test-realm");
+        verify(realmResource).users();
+        verify(usersResource).get(userId);
+        verify(userResource).remove();
     }
 
     @Test
-    void logout() {
+    @DisplayName("Devrait échouer lors de la suppression de l'utilisateur")
+    void removeUser_shouldFailToRemoveUser() {
+        // Arrange
+        String userId = "user-to-delete";
+
+        when(keycloakMock.realm(anyString())).thenReturn(realmResource);
+        when(realmResource.users()).thenReturn(usersResource);
+        when(usersResource.get(userId)).thenReturn(userResource);
+        doThrow(new RuntimeException("Failed to remove user")).when(userResource).remove();
+
+        // Act
+        boolean result = keycloakService.removeUser(userId);
+
+        // Assert
+        assertFalse(result);
+        verify(keycloakMock).realm("Test-realm");
+        verify(realmResource).users();
+        verify(usersResource).get(userId);
+        verify(userResource).remove();
     }
 
     @Test
-    void resetPassword() {
+    @DisplayName("Devrait déconnecter l'utilisateur avec succès")
+    void logout_shouldLogoutUserSuccessfully() {
+        // Arrange
+        String userId = "user-to-logout";
+
+        when(keycloakMock.realm(anyString())).thenReturn(realmResource);
+        when(realmResource.users()).thenReturn(usersResource);
+        when(usersResource.get(userId)).thenReturn(userResource);
+
+        // Act
+        boolean result = keycloakService.logout(userId);
+
+        // Assert
+        assertTrue(result);
+        verify(keycloakMock).realm("Test-realm");
+        verify(realmResource).users();
+        verify(usersResource).get(userId);
+        verify(userResource).logout();
     }
 
     @Test
-    void validateToken() {
+    @DisplayName("Devrait échouer lors de la déconnexion de l'utilisateur")
+    void logout_shouldFailToLogoutUser() {
+        // Arrange
+        String userId = "user-to-logout";
+
+        when(keycloakMock.realm(anyString())).thenReturn(realmResource);
+        when(realmResource.users()).thenReturn(usersResource);
+        when(usersResource.get(userId)).thenReturn(userResource);
+        doThrow(new RuntimeException("Failed to logout user")).when(userResource).logout();
+
+        // Act
+        boolean result = keycloakService.logout(userId);
+
+        // Assert
+        assertFalse(result);
+        verify(keycloakMock).realm("Test-realm");
+        verify(realmResource).users();
+        verify(usersResource).get(userId);
+        verify(userResource).logout();
+    }
+
+    @Test
+    @DisplayName("Devrait réinitialiser le mot de passe avec succès")
+    void resetPassword_shouldResetPasswordSuccessfully() {
+        // Arrange
+        String userId = "user-id";
+        String newPassword = "new-password";
+
+        when(keycloakMock.realm(anyString())).thenReturn(realmResource);
+        when(realmResource.users()).thenReturn(usersResource);
+        when(usersResource.get(userId)).thenReturn(userResource);
+
+        // Act
+        keycloakService.resetPassword(userId, newPassword);
+
+        // Assert
+        // Capture l'objet CredentialRepresentation passé à la méthode resetPassword
+        ArgumentCaptor<CredentialRepresentation> credentialCaptor = ArgumentCaptor.forClass(CredentialRepresentation.class);
+        verify(userResource).resetPassword(credentialCaptor.capture());
+
+        CredentialRepresentation capturedCredential = credentialCaptor.getValue();
+        assertEquals(CredentialRepresentation.PASSWORD, capturedCredential.getType());
+        assertEquals(newPassword, capturedCredential.getValue());
+        assertFalse(capturedCredential.isTemporary());
+    }
+
+    @Test
+    @DisplayName("Devrait échouer lors de la réinitialisation du mot de passe")
+    void resetPassword_shouldFailToResetPassword() {
+        // Arrange
+        String userId = "user-id";
+        String newPassword = "new-password";
+
+        when(keycloakMock.realm(anyString())).thenReturn(realmResource);
+        when(realmResource.users()).thenReturn(usersResource);
+        when(usersResource.get(userId)).thenReturn(userResource);
+        doThrow(new RuntimeException("Failed to reset password")).when(userResource).resetPassword(any(CredentialRepresentation.class));
+
+        // Act & Assert
+        RuntimeException exception = assertThrows(RuntimeException.class, () -> {
+            keycloakService.resetPassword(userId, newPassword);
+        });
+
+        // Vérification du message d'erreur
+        assertTrue(exception.getMessage().contains("Erreur lors de la modification du password"),
+                "Le message d'erreur devrait contenir 'Erreur lors de la modification du password'");
+    }
+
+    @Test
+    @DisplayName("Devrait valider le token avec succès")
+    void validateToken_shouldValidateTokenSuccessfully() throws IOException, InterruptedException {
+        // Arrange
+        String token = "valid-token";
+
+        HttpResponse<String> response = mock(HttpResponse.class);
+        HttpRequest request = mock(HttpRequest.class);
+
+        when(this.httpClientConfig.getRequest(anyString(), anyString()))
+                .thenReturn(request);
+
+        when(this.httpClient.send(
+                any(HttpRequest.class),
+                any(HttpResponse.BodyHandler.class)))
+                .thenReturn(response);
+
+        when(response.statusCode()).thenReturn(200);
+
+        // Act
+        boolean result = keycloakService.validateToken(token);
+
+        // Assert
+        assertTrue(result);
+
+        // Vérifier que les méthodes appropriées ont été appelées
+        verify(httpClientConfig)
+                .getRequest(anyString(), contains("Bearer " + token));
+        verify(httpClient, times(1))
+                .send(any(HttpRequest.class), any(HttpResponse.BodyHandler.class));
+    }
+
+    @Test
+    @DisplayName("Devrait échouer lors de la validation du token")
+    void validateToken_shouldFailToValidateToken() throws IOException, InterruptedException {
+        // Arrange
+        String token = "invalid-token";
+
+        HttpRequest request = mock(HttpRequest.class);
+        HttpResponse<String> response = mock(HttpResponse.class);
+
+        when(this.httpClientConfig.getRequest(anyString(), anyString())).thenReturn(request);
+        when(response.statusCode()).thenReturn(401);
+        when(httpClient.send(any(HttpRequest.class), any(HttpResponse.BodyHandler.class))).thenReturn(response);
+
+        // Act
+        boolean result = keycloakService.validateToken(token);
+
+        // Assert
+        assertFalse(result);
+
+        // Vérifier que les méthodes appropriées ont été appelées
+        verify(httpClientConfig, times(1))
+                .getRequest(anyString(), anyString());
+        verify(httpClient, times(1))
+                .send(any(HttpRequest.class), any(HttpResponse.BodyHandler.class));
     }
 }

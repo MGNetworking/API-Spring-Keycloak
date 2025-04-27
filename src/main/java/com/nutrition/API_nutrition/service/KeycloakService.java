@@ -6,6 +6,7 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.nutrition.API_nutrition.config.KeycloakProvider;
 import com.nutrition.API_nutrition.model.dto.RegisterRequestDto;
 import com.nutrition.API_nutrition.model.dto.TokenResponseDto;
+import com.nutrition.API_nutrition.util.HttpClientConfig;
 import jakarta.ws.rs.core.Response;
 import lombok.extern.slf4j.Slf4j;
 import org.keycloak.admin.client.Keycloak;
@@ -15,7 +16,6 @@ import org.keycloak.representations.idm.RoleRepresentation;
 import org.keycloak.representations.idm.UserRepresentation;
 import org.springframework.stereotype.Service;
 
-import java.net.URI;
 import java.net.URLEncoder;
 import java.net.http.HttpClient;
 import java.net.http.HttpRequest;
@@ -35,12 +35,12 @@ public class KeycloakService {
 
     private final KeycloakProvider keycloakProvider;
     private final HttpClient httpClient;
+    private final HttpClientConfig httpClientConfig;
 
-
-    public KeycloakService(KeycloakProvider keycloakProvider, HttpClient httpClient) {
+    public KeycloakService(KeycloakProvider keycloakProvider, HttpClient httpClient, HttpClientConfig httpClientConfig) {
         this.keycloakProvider = keycloakProvider;
         this.httpClient = httpClient;
-
+        this.httpClientConfig = httpClientConfig;
     }
 
     private Keycloak getKc() {
@@ -130,27 +130,22 @@ public class KeycloakService {
 
     /**
      * Authentifie un utilisateur et retourne les tokens
+     * Peut être utilisée comment accès token
      */
     public TokenResponseDto login(String username, String password) {
 
         try {
 
             String tokenUrl = getUrl() + "/realms/" + getRealm() + "/protocol/openid-connect/token";
+            String header = "application/x-www-form-urlencoded";
+            String body = "client_id=" + this.keycloakProvider.getClientId() +
+                    "&client_secret=" + this.keycloakProvider.getClientSecret() +
+                    "&grant_type=password" +
+                    "&username=" + URLEncoder.encode(username, StandardCharsets.UTF_8) +
+                    "&password=" + URLEncoder.encode(password, StandardCharsets.UTF_8);
 
             log.info("Token Url : {}", tokenUrl);
-
-            // création de la requête
-            HttpRequest request = HttpRequest.newBuilder()
-                    .uri(URI.create(tokenUrl))
-                    .header("Content-Type", "application/x-www-form-urlencoded")
-                    .POST(HttpRequest.BodyPublishers.ofString(
-                            "client_id=" + this.keycloakProvider.getClientId() +
-                                    "&client_secret=" + this.keycloakProvider.getClientSecret() +
-                                    "&grant_type=password" +
-                                    "&username=" + URLEncoder.encode(username, StandardCharsets.UTF_8) +
-                                    "&password=" + URLEncoder.encode(password, StandardCharsets.UTF_8)
-                    ))
-                    .build();
+            HttpRequest request = this.httpClientConfig.postRequest(tokenUrl, header, body);
 
             // send to keycloak
             HttpResponse<String> response = this.httpClient.send(
@@ -159,6 +154,7 @@ public class KeycloakService {
             );
 
             if (response.statusCode() != 200) {
+                log.error("Authentication failed for this {} password: {}", username, password);
                 throw new RuntimeException("Authentication failed: " + response.body());
             }
 
@@ -185,19 +181,13 @@ public class KeycloakService {
         try {
 
             String tokenUrl = getUrl() + "/realms/" + getRealm() + "/protocol/openid-connect/token";
+            String header = "application/x-www-form-urlencoded";
+            String body = "client_id=" + this.keycloakProvider.getClientId() +
+                    "&client_secret=" + this.keycloakProvider.getClientSecret() +
+                    "&grant_type=refresh_token" +
+                    "&refresh_token=" + URLEncoder.encode(refreshToken, StandardCharsets.UTF_8);
 
-            HttpClient httpClient = HttpClient.newHttpClient();
-            HttpRequest request = HttpRequest.newBuilder()
-                    .uri(URI.create(tokenUrl))
-                    .header("Content-Type", "application/x-www-form-urlencoded")
-                    .POST(HttpRequest.BodyPublishers.ofString(
-                            "client_id=" + this.keycloakProvider.getClientId() +
-                                    "&client_secret=" + this.keycloakProvider.getClientSecret() +
-                                    "&grant_type=refresh_token" +
-                                    "&refresh_token=" + URLEncoder.encode(refreshToken, StandardCharsets.UTF_8)
-                    ))
-                    .build();
-
+            HttpRequest request = this.httpClientConfig.postRequest(tokenUrl, header, body);
             HttpResponse<String> response = httpClient.send(request, HttpResponse.BodyHandlers.ofString());
 
             if (response.statusCode() != 200) {
@@ -215,6 +205,27 @@ public class KeycloakService {
             );
         } catch (Exception e) {
             throw new RuntimeException("Token refresh process failed", e);
+        }
+    }
+
+    /**
+     * Vérifie si un token JWT est valide et non expiré
+     */
+    public boolean validateToken(String token) {
+        try {
+
+            String tokenUrl = this.keycloakProvider.getAuthServerUrl() +
+                    "/realms/" +
+                    this.keycloakProvider.getRealm() +
+                    "/protocol/openid-connect/userinfo";
+
+            String header = "Bearer " + token;
+            HttpRequest request = this.httpClientConfig.getRequest(tokenUrl, header);
+            HttpResponse<String> response = this.httpClient.send(request, HttpResponse.BodyHandlers.ofString());
+
+            return response.statusCode() == 200;
+        } catch (Exception e) {
+            return false;
         }
     }
 
@@ -369,32 +380,6 @@ public class KeycloakService {
         } catch (Exception e) {
             log.error("Erreur lors de la modification du password de votre utilisateur, id {} , password {}", userId, newPassword);
             throw new RuntimeException("Erreur lors de la modification du password id " + userId + " , password " + newPassword);
-        }
-    }
-
-    /**
-     * Vérifie si un token JWT est valide et non expiré
-     */
-    public boolean validateToken(String token) {
-        try {
-
-            String tokenUrl = this.keycloakProvider.getAuthServerUrl() +
-                    "/realms/" +
-                    this.keycloakProvider.getRealm() +
-                    "/protocol/openid-connect/userinfo";
-
-            HttpClient httpClient = HttpClient.newHttpClient();
-            HttpRequest request = HttpRequest.newBuilder()
-                    .uri(URI.create(tokenUrl))
-                    .header("Authorization", "Bearer " + token)
-                    .GET()
-                    .build();
-
-            HttpResponse<String> response = httpClient.send(request, HttpResponse.BodyHandlers.ofString());
-
-            return response.statusCode() == 200;
-        } catch (Exception e) {
-            return false;
         }
     }
 

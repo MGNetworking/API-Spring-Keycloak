@@ -14,8 +14,14 @@ Launch of Spring Sans profile
 
 Launching unit tests
 
-````bash
+````shell
+# linux
 ./mvnw clean test -Dspring.profiles.active=test
+````
+
+````bash
+# Windows
+./mvnw clean test -D spring.profiles.active=test
 ````
 
 [H2 Access IP](http://localhost:8080/h2-console)
@@ -32,9 +38,11 @@ Maven Wrapper (`mvnw`) is a script that allows you to run Maven commands without
 
 When you execute the `./mvnw` command (or `mvnw.cmd` on Windows):
 
-1. The Maven Wrapper script checks if Maven is already available in a local directory of the project (typically `.mvn/wrapper/`)
+1. The Maven Wrapper script checks if Maven is already available in a local directory of the project (typically
+   `.mvn/wrapper/`)
 
-2. If Maven is not found locally, the script automatically downloads the appropriate version of Maven specified in your project
+2. If Maven is not found locally, the script automatically downloads the appropriate version of Maven specified in your
+   project
 
 3. Then, the script executes the Maven command you requested using this downloaded version
 
@@ -61,4 +69,5 @@ When you execute the `./mvnw` command (or `mvnw.cmd` on Windows):
 mvnw.cmd clean install
 ```
 
-In a Spring development environment, you'll still need to install a JDK, but not necessarily Maven thanks to the wrapper.
+In a Spring development environment, you'll still need to install a JDK, but not necessarily Maven thanks to the
+wrapper.

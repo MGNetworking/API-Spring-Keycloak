@@ -158,7 +158,7 @@ public class AuthController {
                     .status(HttpStatus.OK)
                     .body(new GenericApiResponse<ApiResponseData>(
                             HttpStatus.OK,
-                            "Utilisateur trouver avec succès",
+                            "User successfully found",
                             "/api/v1/auth/" + userId,
                             dtoUser
                     ));

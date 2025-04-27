@@ -6,6 +6,7 @@ import com.nutrition.API_nutrition.model.dto.UserResponseDto;
 import com.nutrition.API_nutrition.model.entity.Gender;
 import com.nutrition.API_nutrition.model.entity.User;
 import com.nutrition.API_nutrition.repository.UserRepository;
+import org.hibernate.service.spi.ServiceException;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -17,9 +18,9 @@ import org.mockito.junit.jupiter.MockitoExtension;
 
 import java.time.LocalDate;
 import java.util.List;
+import java.util.Optional;
 
-import static org.junit.jupiter.api.Assertions.assertEquals;
-import static org.junit.jupiter.api.Assertions.assertNotNull;
+import static org.junit.jupiter.api.Assertions.*;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.*;
 
@@ -90,7 +91,76 @@ class UserServiceTest {
     }
 
     @Test
-    @DisplayName("test de mise à jour d'un utilisateur")
+    @DisplayName("Test d'échec lors de la création d'un utilisateur")
+    public void testCreateUser_Failure() {
+        // Arrange
+        // Simuler une exception lors de la création dans Keycloak
+        doThrow(new IllegalArgumentException("Error creating user in Keycloak")).when(keycloakService).createUser(any());
+
+        // Act & Assert
+        Exception exception = assertThrows(IllegalArgumentException.class, () -> {
+            userService.createUser(dto);
+        });
+
+        // Vérifie que le message d'erreur contient la chaîne attendue
+        assertTrue(exception.getMessage().contains("Failed to create user"));
+
+        // Vérifie que la méthode de sauvegarde en base n'a pas été appelée
+        verify(userRepository, never()).save(any());
+    }
+
+    @Test
+    @DisplayName("Test de création d'un utilisateur avec DTO null")
+    public void testCreateUser_NullDto() {
+        // Act & Assert
+        Exception exception = assertThrows(IllegalArgumentException.class, () -> {
+            userService.createUser(null);
+        });
+
+        assertEquals("This user dto is null", exception.getMessage());
+
+        // Vérifier qu'aucune méthode n'a été appelée
+        verifyNoInteractions(keycloakService);
+        verifyNoInteractions(userRepository);
+    }
+
+    @Test
+    @DisplayName("Test de récupération d'un utilisateur")
+    public void testGetUser_Success() {
+        // Arrange
+        String keycloakId = "kc123456";
+        User user = dto.UserMapping();
+        when(userRepository.findByKeycloakId(keycloakId))
+                .thenReturn(Optional.of(user));
+
+        // Act
+        Optional<User> result = userService.getuser(keycloakId);
+
+        // Assert
+        assertTrue(result.isPresent());
+        assertEquals(keycloakId, result.get().getKeycloakId());
+        verify(userRepository).findByKeycloakId(keycloakId);
+    }
+
+    @Test
+    @DisplayName("Test d'échec lors de la récupération d'un utilisateur")
+    public void testGetUser_Failure() {
+        // Arrange
+        String keycloakId = "nonexistent";
+        when(userRepository.findByKeycloakId(keycloakId)).thenThrow(new RuntimeException("Database error"));
+
+        // Act & Assert
+        Exception exception = assertThrows(IllegalArgumentException.class, () -> {
+            userService.getuser(keycloakId);
+        });
+
+        assertEquals("Failed to research user", exception.getMessage());
+        verify(userRepository).findByKeycloakId(keycloakId);
+    }
+
+
+    @Test
+    @DisplayName("Test de mise à jour d'un utilisateur")
     public void testUpdateUser_Success() {
 
         // Arrange
@@ -116,4 +186,108 @@ class UserServiceTest {
         assertEquals(dto.getEmail(), resutltatUser.getEmail());
     }
 
+    @Test
+    @DisplayName("Test d'échec lors de la mise à jour d'un utilisateur")
+    public void testUpdateUser_Failure() {
+
+        // Arrange
+        when(this.keycloakService.updateUser(dto)).thenReturn(false);
+
+        // Act & Assert
+        Exception exception = assertThrows(IllegalArgumentException.class, () -> {
+            this.userService.updateUser(dto);
+        });
+
+        assertEquals("Failed to update user", exception.getMessage());
+
+        // Vérifie que la méthode de sauvegarde en base n'a pas été appelée
+        verify(this.userRepository, never()).save(any());
+    }
+
+    @Test
+    @DisplayName("Test de mise à jour d'un utilisateur avec DTO null")
+    public void testUpdateUser_NullDto() {
+        // Act & Assert
+        Exception exception = assertThrows(IllegalArgumentException.class, () -> {
+            userService.updateUser(null);
+        });
+
+        assertEquals("This user cannot be null or user ID empty", exception.getMessage());
+
+        // Vérifier qu'aucune méthode n'a été appelée
+        verifyNoInteractions(keycloakService);
+        verifyNoInteractions(userRepository);
+    }
+
+    @Test
+    @DisplayName("Test de suppression d'un utilisateur")
+    public void testDeleteUser_Success() {
+        // Arrange
+        String keycloakId = "kc123456";
+        when(keycloakService.removeUser(keycloakId)).thenReturn(true);
+        doNothing().when(userRepository).deleteById(keycloakId);
+        when(userRepository.existsById(keycloakId)).thenReturn(false);
+
+        // Act
+        userService.deleteUser(keycloakId);
+
+        // Assert
+        verify(keycloakService).removeUser(keycloakId);
+        verify(userRepository).deleteById(keycloakId);
+        verify(userRepository).existsById(keycloakId);
+    }
+
+    @Test
+    @DisplayName("Test d'échec lors de la suppression d'un utilisateur - échec Keycloak")
+    public void testDeleteUser_KeycloakFailure() {
+        // Arrange
+        String keycloakId = "kc123456";
+        when(keycloakService.removeUser(keycloakId)).thenReturn(false);
+
+        // Act & Assert
+        Exception exception = assertThrows(IllegalArgumentException.class, () -> {
+            userService.deleteUser(keycloakId);
+        });
+
+        assertEquals("Failed to delete user", exception.getMessage());
+
+        // Vérifier que la méthode de suppression en base n'a pas été appelée
+        verify(userRepository, never()).deleteById(anyString());
+    }
+
+    @Test
+    @DisplayName("Test d'échec lors de la suppression d'un utilisateur - utilisateur toujours présent en base")
+    public void testDeleteUser_DatabaseFailure() {
+        // Arrange
+        String keycloakId = "kc123456";
+        when(keycloakService.removeUser(keycloakId)).thenReturn(true);
+        doNothing().when(userRepository).deleteById(keycloakId);
+        when(userRepository.existsById(keycloakId)).thenReturn(true);
+
+        // Act & Assert
+        Exception exception = assertThrows(IllegalArgumentException.class, () -> {
+            userService.deleteUser(keycloakId);
+        });
+
+        assertEquals("Failed to delete user", exception.getMessage());
+
+        // Vérifier que les méthodes ont été appelées
+        verify(keycloakService).removeUser(keycloakId);
+        verify(userRepository).deleteById(keycloakId);
+    }
+
+    @Test
+    @DisplayName("Test de suppression d'un utilisateur avec ID null")
+    public void testDeleteUser_NullId() {
+        // Act & Assert
+        Exception exception = assertThrows(IllegalArgumentException.class, () -> {
+            userService.deleteUser(null);
+        });
+
+        assertEquals("KeycloakId cannot be null or empty", exception.getMessage());
+
+        // Vérifier qu'aucune méthode n'a été appelée
+        verifyNoInteractions(keycloakService);
+        verifyNoInteractions(userRepository);
+    }
 }

@@ -80,7 +80,7 @@ public class UserService {
             return this.userRepository.findByKeycloakId(userId);
 
         } catch (Exception e) {
-            log.error("Erreur lors de la recherche de l'utilisateur avec l'ID {}", userId);
+            log.error("Error searching for user with ID {}", userId);
             throw new IllegalArgumentException("Failed to research user");
         }
 
@@ -126,7 +126,7 @@ public class UserService {
         } catch (Exception e) {
             // Attrape toutes les autres exceptions non prévues
             log.error("Unexpected error when updating user", e);
-            throw new IllegalArgumentException("Failed to update user: ", e);
+            throw new IllegalArgumentException("Failed to update user", e);
         }
 
     }
@@ -144,7 +144,7 @@ public class UserService {
             // Supprimer dans Keycloak
             boolean keycloakUpdateSuccess = this.keycloakService.removeUser(keycloakId);
             if (!keycloakUpdateSuccess) {
-                throw new ServiceException("Failed to update user in Keycloak");
+                throw new IllegalArgumentException("Failed to delete user in Keycloak");
             }
 
             // Supprimer en base de données
@@ -153,7 +153,7 @@ public class UserService {
             // check si l'utilisateur existe en BD
             boolean stillExists = userRepository.existsById(keycloakId);
             if (stillExists) {
-                throw new ServiceException("User was not deleted from database");
+                throw new IllegalArgumentException("User was not deleted from database");
             }
 
             log.info("User with keycloakId {} successfully deleted", keycloakId);
@@ -171,7 +171,7 @@ public class UserService {
         } catch (Exception e) {
             // Attrape toutes les autres exceptions non prévues
             log.error("Unexpected error when deleting user", e);
-            throw new IllegalArgumentException("Failed to delete user: " + e.getMessage(), e);
+            throw new IllegalArgumentException("Failed to delete user" , e);
         }
 
     }

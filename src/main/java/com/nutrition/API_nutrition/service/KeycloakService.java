@@ -76,7 +76,6 @@ public class KeycloakService {
                     .users()
                     .create(user);
 
-            log.info("Response : {}", response);
             if (response.getStatus() < 200 || response.getStatus() >= 300) {
                 throw new RuntimeException("Failed to create user in Keycloak: " + response.getStatusInfo());
             }
@@ -91,7 +90,7 @@ public class KeycloakService {
 
 
         } else {
-            log.info("L'utilisateur existe déjà {}", user.getUsername());
+            log.info("User already exists {}", user.getUsername());
         }
 
     }
@@ -101,10 +100,10 @@ public class KeycloakService {
      */
     public void addUserRoles(String userId, List<String> roleNames) {
 
-        log.info("Recherche et récupération des rôles a signer a l'utilisateur ciblé.");
+        log.info("Search for and retrieve the roles to be signed by the target user.");
         List<RoleRepresentation> roles = roleNames.stream()
                 .map(roleName -> {
-                    log.info("Vérification de l'existant du role suivant en le realm: {}", roleName);
+                    log.info("Check that the following role exists in realm {}", roleName);
                     return getKc().realm(getRealm())
                             .roles()
                             .get(roleName)
@@ -114,9 +113,9 @@ public class KeycloakService {
 
         try {
             ObjectMapper mapper = new ObjectMapper();
-            log.info("Liste des a signer a l'utilisateur {}", mapper.writeValueAsString(roles));
+            log.info("User signature list {}", mapper.writeValueAsString(roles));
         } catch (JsonProcessingException e) {
-            log.error("Erreur dans le parsing pour l'affichage des rôles ");
+            log.error("Parsing error for role display ");
         }
 
         // Assigner les rôles à l'utilisateur
@@ -154,7 +153,7 @@ public class KeycloakService {
             );
 
             if (response.statusCode() != 200) {
-                log.error("Authentication failed for this {} password: {}", username, password);
+                log.error("Authentication failed for this user {} and password: {}", username, password);
                 throw new RuntimeException("Authentication failed: " + response.body());
             }
 
@@ -271,7 +270,7 @@ public class KeycloakService {
             return user != null;
 
         } catch (Exception e) {
-            log.error("Erreur lors de la vérification de l'existence de l'utilisateur {}", userId, e);
+            log.error("Error verifying user existence {}", userId, e);
             return false;
         }
 
@@ -302,16 +301,16 @@ public class KeycloakService {
 
             // Mise à jour du mot de passe
             if (dto.getPassword() == null || dto.getPassword().isEmpty()) {
-                throw new RuntimeException("Le password de l'utilisateur est absent ou manquant!");
+                throw new RuntimeException("The user's password is missing!");
             }
 
             userResource.update(existingUser);
 
-            log.info("User update: {}", dto.getUserName());
+            log.info("User update {}", dto.getUserName());
             return true;
 
         } catch (Exception e) {
-            log.error("Erreur lors de la mise à jour de l'utilisateur {}", dto.getUserName(), e);
+            log.error("User update error {}", dto.getUserName(), e);
             return false;
         }
     }
@@ -329,12 +328,12 @@ public class KeycloakService {
                     .get(userId)
                     .remove();
 
-            log.info("User ID delete : {}", userId);
+            log.info("Id User is delete successfully {}", userId);
             return true;
 
         } catch (Exception e) {
 
-            log.error("Erreur lors de la suppression d'un l'utilisateur");
+            log.error("Error when deleting a user");
             return false;
         }
     }
@@ -350,12 +349,12 @@ public class KeycloakService {
                     .get(userId)
                     .logout();
 
-            log.info("Fermeture de connexion réussi, ID {}", userId);
+            log.info("Login successfully closed {}", userId);
             return true;
 
         } catch (Exception e) {
 
-            log.error("Erreur lors de fermeture de connexion , ID {}", userId);
+            log.error("Error closing connection {}", userId);
             return false;
         }
     }
@@ -378,8 +377,8 @@ public class KeycloakService {
                     .resetPassword(credential);
 
         } catch (Exception e) {
-            log.error("Erreur lors de la modification du password de votre utilisateur, id {} , password {}", userId, newPassword);
-            throw new RuntimeException("Erreur lors de la modification du password id " + userId + " , password " + newPassword);
+            log.error("Error modifying your user's password");
+            throw new RuntimeException("Error modifying user password");
         }
     }
 

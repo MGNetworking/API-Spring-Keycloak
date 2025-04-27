@@ -2,7 +2,8 @@
 
 This project is an example to implementation with Spring With Keycloak and Database H2
 
-NB: To use this project, you need a running Keycloak identity manager.
+NB: To use this project, you need a running Keycloak identity manager. But you can run the unit tests to see how they
+work.
 
 ## Speed access
 

@@ -123,7 +123,14 @@ class KeycloakServiceTest {
         when(realmResource.users()).thenReturn(usersResource);
 
         // Mock les liste des utilisateurs sur le nom spécifique recherché
-        when(usersResource.search(anyString(), eq(true))).thenReturn(Collections.emptyList());
+        when(usersResource.search(
+                anyString(),
+                anyString(),
+                anyString(),
+                isNull(),
+                isNull(),
+                isNull()
+        )).thenReturn(Collections.emptyList());
 
         // Mock la création d'un user avec le type UserRepresentation
         when(usersResource.create(any(UserRepresentation.class))).thenReturn(response);
@@ -142,7 +149,10 @@ class KeycloakServiceTest {
         // Vérifier les interactions
         verify(keycloakMock, times(2)).realm("Test-realm");
         verify(realmResource, times(2)).users();
-        verify(usersResource).search(this.dto.getUserName(), true);
+        verify(usersResource).search(
+                this.dto.getUserName(), this.dto.getFirstName(), this.dto.getLastName(),
+                null, null, null
+        );
 
         ArgumentCaptor<UserRepresentation> userCaptor = ArgumentCaptor.forClass(UserRepresentation.class);
         verify(usersResource).create(userCaptor.capture());
@@ -158,7 +168,7 @@ class KeycloakServiceTest {
 
     @Test
     @DisplayName("Devrait ajouter les role à l'utilisateur avec succès")
-    void addUserRoles_shouldAddRoleUserSuccessfully() {
+    void addUserRoles_shouldAddRoleUserSuccessfullyRealm() {
 
         // Arrange
         String userId = "id-test";
@@ -189,7 +199,7 @@ class KeycloakServiceTest {
         when(this.roleMappingResource.realmLevel()).thenReturn(this.roleScopeResource);
 
         // Act
-        this.keycloakService.addUserRoles(userId, roleName);
+        this.keycloakService.addUserRolesRealm(userId, roleName);
 
         // Assert
         // Création d'objet pour capter les infos passer la methode add
@@ -598,8 +608,8 @@ class KeycloakServiceTest {
         });
 
         // Vérification du message d'erreur
-        assertTrue(exception.getMessage().contains("Erreur lors de la modification du password"),
-                "Le message d'erreur devrait contenir 'Erreur lors de la modification du password'");
+        assertTrue(exception.getMessage().contains("Error modifying user password"),
+                "Le message d'erreur devrait contenir 'Error modifying user password'");
     }
 
     @Test
@@ -658,5 +668,24 @@ class KeycloakServiceTest {
                 .getRequest(anyString(), anyString());
         verify(httpClient, times(1))
                 .send(any(HttpRequest.class), any(HttpResponse.BodyHandler.class));
+    }
+
+    @Test
+    @DisplayName("Devrait afficher la list ")
+    void displayList_shouldByDisplayList_Successfully() {
+        this.keycloakService.displayList(List.of("admin", "user"));
+    }
+
+    static class Circular {
+        public Circular ref;
+    }
+
+    @Test
+    @DisplayName("Devrait lancer un exception")
+    void displayList_shouldByDisplayList_Exception() {
+        Circular circular = new Circular();
+        circular.ref = circular;
+
+        this.keycloakService.displayList(List.of(circular));
     }
 }

@@ -2,6 +2,7 @@ package com.nutrition.API_nutrition.config;
 
 import jakarta.annotation.PostConstruct;
 import lombok.Getter;
+import lombok.extern.slf4j.Slf4j;
 import org.keycloak.OAuth2Constants;
 import org.keycloak.admin.client.Keycloak;
 import org.keycloak.admin.client.KeycloakBuilder;
@@ -19,6 +20,7 @@ import org.springframework.stereotype.Component;
  * <p>
  * Ce bean est utilisé par KeycloakService pour effectuer des opérations administratives sur Keycloak (créer des utilisateurs, gérer les rôles, etc.).
  */
+@Slf4j
 @Component
 public class KeycloakProvider {
 
@@ -62,4 +64,15 @@ public class KeycloakProvider {
                 .clientSecret(clientSecret)
                 .build();
     }
+
+
+    public void logKeycloakConfig() {
+        log.info("Keycloak Configuration");
+        log.info("Server URL: {}", authServerUrl);
+        log.info("Master Realm: {}", realm);
+        log.info("Application Realm: {}", realm);
+        log.info("Client ID: {}", clientId);
+        log.info("Client Secret is set: {}", clientSecret != null && !clientSecret.isEmpty());
+    }
 }
+

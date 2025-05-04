@@ -6,7 +6,6 @@ import com.nutrition.API_nutrition.model.dto.UserResponseDto;
 import com.nutrition.API_nutrition.model.entity.Gender;
 import com.nutrition.API_nutrition.model.entity.User;
 import com.nutrition.API_nutrition.repository.UserRepository;
-import org.hibernate.service.spi.ServiceException;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -62,7 +61,7 @@ class UserServiceTest {
         // Simuler les appels à KeycloakService (void methods)
         doNothing().when(keycloakService).createUser(any());
 
-        doNothing().when(keycloakService).addUserRoles(anyString(), anyList());
+        doNothing().when(keycloakService).addUserRolesRealm(anyString(), anyList());
 
         // Simuler la sauvegarde en base
         ArgumentCaptor<User> userCaptor = ArgumentCaptor.forClass(User.class);
@@ -87,7 +86,7 @@ class UserServiceTest {
 
         // Vérifie que les méthodes void ont bien été appelées
         verify(keycloakService).createUser(any());
-        verify(keycloakService).addUserRoles(dto.getKeycloakId(), List.of("USER"));
+        verify(keycloakService).addUserRolesRealm(dto.getKeycloakId(), List.of("USER"));
     }
 
     @Test

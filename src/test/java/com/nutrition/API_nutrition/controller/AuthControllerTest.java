@@ -53,7 +53,7 @@ class AuthControllerTest {
     @BeforeEach
     public void init() {
         this.requestDto = new RegisterRequestDto();
-        requestDto.setKeycloakId("keycloak-id");
+        //requestDto.setKeycloakId("keycloak-id");
         requestDto.setUserName("Username");
         requestDto.setFirstName("Firstname");
         requestDto.setLastName("Lastname");
@@ -98,6 +98,7 @@ class AuthControllerTest {
     void shouldUpdateUserSuccessfully() throws Exception {
 
         // Arrange
+        this.requestDto.setKeycloakId("keycloak-id");
         UserResponseDto updatedUser = new UserResponseDto()
                 .mappingToUser(this.requestDto.UserMapping());
 

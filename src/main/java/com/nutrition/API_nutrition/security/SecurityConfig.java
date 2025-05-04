@@ -4,6 +4,7 @@ import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.core.convert.converter.Converter;
 import org.springframework.security.authentication.AbstractAuthenticationToken;
+import org.springframework.security.config.annotation.method.configuration.EnableMethodSecurity;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 import org.springframework.security.config.annotation.web.configuration.EnableWebSecurity;
 import org.springframework.security.config.annotation.web.configurers.AbstractHttpConfigurer;
@@ -25,19 +26,20 @@ import java.util.stream.Collectors;
  */
 @Configuration
 @EnableWebSecurity
+@EnableMethodSecurity // Active les annotations @PreAuthorize, @PostAuthorize,
 public class SecurityConfig {
 
     /**
-     * Lorsqu'une requête HTTP arrive à votre application
+     * Lorsqu'une requête HTTP arrive à votre application :
      * <ul>
-     *     <li>La requête passe d'abord par la chaîne de filtres Spring Security (configurée via SecurityFilterChain)</li>
-     *     <li>Pour une API sécurisée par JWT, le filtre JwtAuthenticationFilter intercepte la requête</li>
-     *     <li>Ce filtre extrait le token JWT de l'en-tête HTTP Authorization: Bearer [token]</li>
-     *     <li>Le token est validé (signature, expiration, émetteur)</li>
-     *     <li>Si valide, le contenu du token (claims) est extrait et converti en un objet Authentication</li>
-     *     <li>Cette Authentication est placée dans le SecurityContext</li>
-     *     <li>Les autorisations sont vérifiées par rapport aux règles définies</li>
-     *
+     *     <li>La requête passe d'abord par la chaîne de filtres de Spring Security (définie via {@link SecurityFilterChain}).</li>
+     *     <li>Pour une API protégée par JWT, le filtre {@code BearerTokenAuthenticationFilter} (fourni par Spring) intercepte la requête.</li>
+     *     <li>Ce filtre extrait le token JWT depuis l'en-tête HTTP {@code Authorization: Bearer [token]}.</li>
+     *     <li>Le token est ensuite validé (signature, expiration, audience, etc.) par un {@code JwtDecoder} configuré automatiquement.</li>
+     *     <li>Si le token est valide, les informations qu'il contient (claims) sont converties en un objet {@code Authentication}
+     *         grâce à un {@code JwtAuthenticationConverter} personnalisé (comme {@code keycloakJwtAuthenticationConverter()}).</li>
+     *     <li>Cette {@code Authentication} est placée dans le {@code SecurityContext}, rendant l'utilisateur authentifié dans le reste du traitement.</li>
+     *     <li>Spring Security applique ensuite les règles d'autorisation configurées (via {@code authorizeHttpRequests}).</li>
      * </ul>
      */
     @Bean

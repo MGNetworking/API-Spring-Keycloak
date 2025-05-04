@@ -41,6 +41,7 @@ public class AuthController {
                     .status(HttpStatus.CONFLICT)
                     .body(new GenericApiResponse<ApiResponseData>(
                             HttpStatus.CONFLICT,
+                            HttpStatus.CONFLICT.value(),
                             "The user is already exists",
                             "/api/v1/auth",
                             userDto
@@ -58,6 +59,7 @@ public class AuthController {
                 .header("Authorization", "Bearer " + tokens.getAccessToken())
                 .body(new GenericApiResponse<ApiResponseData>(
                         HttpStatus.CREATED,
+                        HttpStatus.CREATED.value(),
                         "The user was Successfully create",
                         "/api/v1/auth",
                         userResponseDto
@@ -75,7 +77,8 @@ public class AuthController {
                     .status(HttpStatus.NOT_FOUND)
                     .body(new GenericApiResponse<ApiResponseData>(
                             HttpStatus.NOT_FOUND,
-                            "The update was a failure",
+                            HttpStatus.NOT_FOUND.value(),
+                            "User not exist, Update is impossible",
                             "/api/v1/auth/user",
                             null
                     ));
@@ -87,6 +90,7 @@ public class AuthController {
                     .status(HttpStatus.OK)
                     .body(new GenericApiResponse<ApiResponseData>(
                             HttpStatus.OK,
+                            HttpStatus.OK.value(),
                             "This user is update with successfully",
                             "/api/v1/auth/user",
                             dto
@@ -97,6 +101,7 @@ public class AuthController {
                 .status(HttpStatus.BAD_REQUEST)
                 .body(new GenericApiResponse<ApiResponseData>(
                         HttpStatus.BAD_REQUEST,
+                        HttpStatus.BAD_REQUEST.value(),
                         "The update was a failure",
                         "/api/v1/auth/user",
                         userDto
@@ -113,6 +118,7 @@ public class AuthController {
                     .status(HttpStatus.NOT_FOUND)
                     .body(new GenericApiResponse<String>(
                             HttpStatus.NOT_FOUND,
+                            HttpStatus.NOT_FOUND.value(),
                             "The user is not found",
                             "/api/v1/auth/" + userId,
                             null
@@ -124,6 +130,7 @@ public class AuthController {
                 .status(HttpStatus.NO_CONTENT)
                 .body(new GenericApiResponse<String>(
                         HttpStatus.NO_CONTENT,
+                        HttpStatus.NO_CONTENT.value(),
                         "This user is delete with successfully",
                         "/api/v1/auth/" + userId,
                         null
@@ -142,6 +149,7 @@ public class AuthController {
                     .status(HttpStatus.NOT_FOUND)
                     .body(new GenericApiResponse<ApiResponseData>(
                             HttpStatus.NOT_FOUND,
+                            HttpStatus.NOT_FOUND.value(),
                             "The user is not found",
                             "/api/v1/auth/" + userId,
                             null
@@ -158,6 +166,7 @@ public class AuthController {
                     .status(HttpStatus.OK)
                     .body(new GenericApiResponse<ApiResponseData>(
                             HttpStatus.OK,
+                            HttpStatus.OK.value(),
                             "User successfully found",
                             "/api/v1/auth/" + userId,
                             dtoUser
@@ -167,6 +176,7 @@ public class AuthController {
                     .status(HttpStatus.NOT_FOUND)
                     .body(new GenericApiResponse<ApiResponseData>(
                             HttpStatus.NOT_FOUND,
+                            HttpStatus.NOT_FOUND.value(),
                             "The user is not found in DB , but exist in keycloak",
                             "/api/v1/auth/" + userId,
                             null

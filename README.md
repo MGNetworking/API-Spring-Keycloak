@@ -26,6 +26,7 @@ Launching unit tests
 ````
 
 [H2 Access IP](http://localhost:8080/h2-console)
+[Swagger IP](#http://localhost:8080/swagger-ui/index.html”)
 
 le mot de passe : ``password``
 

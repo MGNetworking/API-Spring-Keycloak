@@ -8,6 +8,11 @@ import com.nutrition.API_nutrition.model.entity.User;
 import com.nutrition.API_nutrition.model.response.GenericApiResponse;
 import com.nutrition.API_nutrition.service.KeycloakService;
 import com.nutrition.API_nutrition.service.UserService;
+import io.swagger.v3.oas.annotations.Operation;
+import io.swagger.v3.oas.annotations.media.Content;
+import io.swagger.v3.oas.annotations.responses.ApiResponse;
+import io.swagger.v3.oas.annotations.responses.ApiResponses;
+import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -20,6 +25,7 @@ import java.util.Optional;
 @Slf4j
 @RestController
 @RequestMapping("/api/v1/auth")
+@Tag(name = "Keycloak User Management", description = "Operations related to users")
 @RequiredArgsConstructor
 public class AuthController {
 
@@ -32,6 +38,16 @@ public class AuthController {
      * @param userDto RegisterRequestDto
      * @return GenericApiResponse<ApiResponseData>
      */
+    @Tag(name = "login")
+    @Operation(
+            summary = "Créer un nouvel utilisateur",
+            description = "Crée un utilisateur dans le système et retourne son profil avec un token d'authentification."
+    )
+    @ApiResponses(value = {
+            @ApiResponse(responseCode = "201", description = "Utilisateur créé avec succès"),
+            @ApiResponse(responseCode = "409", description = "L'utilisateur existe déjà"),
+            @ApiResponse(responseCode = "400", description = "Requête invalide", content = @Content),
+    })
     @PostMapping
     public ResponseEntity<GenericApiResponse<ApiResponseData>> postUser(
             @Valid @RequestBody RegisterRequestDto userDto) {
@@ -67,6 +83,7 @@ public class AuthController {
     }
 
     // Mise à jour d'un utilisateur
+    @Tag(name = "update user")
     @PutMapping(value = "/user")
     public ResponseEntity<GenericApiResponse<ApiResponseData>> updateUser(
             @Valid @RequestBody RegisterRequestDto userDto) {
@@ -109,6 +126,7 @@ public class AuthController {
 
     }
 
+    @Tag(name = "delete user")
     @DeleteMapping(value = "/{userId}")
     public ResponseEntity<GenericApiResponse<String>> deleteUser(
             @PathVariable String userId) {
@@ -139,6 +157,7 @@ public class AuthController {
 
     }
 
+    @Tag(name = "Get user")
     @GetMapping(value = "/{userId}")
     public ResponseEntity<GenericApiResponse<ApiResponseData>> getUser(
             @PathVariable String userId) {
@@ -182,7 +201,5 @@ public class AuthController {
                             null
                     ));
         }
-
-
     }
 }

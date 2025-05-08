@@ -1,38 +1,96 @@
-# API
+# API Spring Keycloak
 
 This project is an example to implementation with Spring With Keycloak and Database H2
 
-NB: To use this project, you need a running Keycloak identity manager. But you can run the unit tests to see how they
-work.
+NB: You can run the unit tests to get an idea of how the project works. But to use this project,
+you need a running Keycloak
 
-## Speed access
+### Sommaire
 
-Launch of Spring Sans profile
+* [Run projet](#run-projet)
+* [Run test](#run-test)
+* [Security Configuration](#security-configuration)
+* [Endpoints Principaux](#endpoints-principaux)
+    * [Gestion Utilisateurs](#gestion-utilisateurs)
+    * [Authentification](#authentification)
+    * [Administration](#administration)
+* [Maven Wrapper: How It Works](#maven-wrapper-how-it-works)
+    * [What is Maven Wrapper?](#what-is-maven-wrapper)
+    * [How it works](#how-it-works)
+    * [Benefits](#benefits)
+    * [Common Usage](#common-usage)
+
+## Run projet
+
+Launch of Spring without profile
 
 ````bash
 ./mvnw spring-boot:run
 ````
 
-Launching unit tests
+## Run test
+
+Launching unit tests with profile.
+
+* Linux :
 
 ````shell
-# linux
 ./mvnw clean test -Dspring.profiles.active=test
 ````
 
+* Windows :
+
 ````bash
-# Windows
 ./mvnw clean test -D spring.profiles.active=test
 ````
 
-[H2 Access IP](http://localhost:8080/h2-console)
-[Swagger IP](#http://localhost:8080/swagger-ui/index.html”)
+Access browser:
 
-le mot de passe : ``password``
+* [Database H2 Access IP](http://localhost:8080/h2-console)
+* [Doc Swagger IP](#http://localhost:8080/swagger-ui/index.html”)
 
-# Maven Wrapper: How It Works
+Database H2 password: ``password``
 
-## What is Maven Wrapper?
+## Security Configuration
+
+Security is managed through the `SecurityConfig` class, with the following features:
+
+- **CSRF Disabled**: Since the API is stateless.
+- **JWT Configuration**: Roles are extracted from Keycloak tokens.
+- **Authorization Rules**:
+    - Public access is allowed for authentication and documentation endpoints.
+    - Access to `/api/v1/admin/**` is restricted to users with the `ROLE_ADMIN` authority.
+    - Authentication is required for all other endpoints.
+
+## Endpoints Principaux
+
+### Gestion Utilisateurs
+
+| Endpoint          | Méthode | Description              | Rôle Requis | Codes Réponse |
+|-------------------|---------|--------------------------|-------------|---------------|
+| /api/v1/auth      | POST    | Création d'utilisateur   | PUBLIC      | 201, 400, 409 |
+| /api/v1/auth/user | PUT     | Mise à jour utilisateur  | ROLE_USER   | 200, 400, 404 |
+| /api/v1/auth/{id} | DELETE  | Suppression utilisateur  | ROLE_ADMIN  | 204, 404      |
+| /api/v1/auth/{id} | GET     | Récupération utilisateur | ROLE_USER   | 200, 404      |
+
+### Authentification
+
+| Endpoint             | Méthode | Description            | Rôle Requis | Codes Réponse |
+|----------------------|---------|------------------------|-------------|---------------|
+| /api/v1/auth/login   | POST    | Connexion (JWT)        | PUBLIC      | 200, 401      |
+| /api/v1/auth/logout  | POST    | Déconnexion            | ROLE_USER   | 200           |
+| /api/v1/auth/refresh | POST    | Rafraîchissement token | ROLE_USER   | 200, 401      |
+
+### Administration
+
+| Endpoint                 | Méthode | Description                    | Rôle Requis | Codes Réponse |
+|--------------------------|---------|--------------------------------|-------------|---------------|
+| /api/v1/admin/users      | GET     | Liste tous les utilisateurs    | ROLE_ADMIN  | 200           |
+| /api/v1/admin/users/{id} | PUT     | Modification admin utilisateur | ROLE_ADMIN  | 200, 404      |
+
+## Maven Wrapper: How It Works
+
+### What is Maven Wrapper?
 
 Maven Wrapper (`mvnw`) is a script that allows you to run Maven commands without having Maven installed on your system.
 

@@ -1,6 +1,8 @@
 package com.nutrition.API_nutrition.service;
 
 import com.fasterxml.jackson.core.JsonProcessingException;
+import com.nutrition.API_nutrition.exception.ApiException;
+import com.nutrition.API_nutrition.exception.ErrorCode;
 import com.nutrition.API_nutrition.model.dto.RegisterRequestDto;
 import com.nutrition.API_nutrition.model.dto.UserResponseDto;
 import com.nutrition.API_nutrition.model.entity.Gender;
@@ -14,6 +16,7 @@ import org.mockito.ArgumentCaptor;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
+import org.springframework.http.HttpStatus;
 
 import java.time.LocalDate;
 import java.util.List;
@@ -60,8 +63,8 @@ class UserServiceTest {
         // Arrange : créer les objet de simulation
         // Simuler les appels à KeycloakService (void methods)
         doNothing().when(keycloakService).createUser(any());
-
-        doNothing().when(keycloakService).addUserRolesRealm(anyString(), anyList());
+        doNothing().when(keycloakService).addUserRolesClient(
+                this.dto.getKeycloakId(), List.of("USER"));
 
         // Simuler la sauvegarde en base
         ArgumentCaptor<User> userCaptor = ArgumentCaptor.forClass(User.class);
@@ -86,23 +89,26 @@ class UserServiceTest {
 
         // Vérifie que les méthodes void ont bien été appelées
         verify(keycloakService).createUser(any());
-        verify(keycloakService).addUserRolesRealm(dto.getKeycloakId(), List.of("USER"));
+        verify(keycloakService).addUserRolesClient(dto.getKeycloakId(), List.of("USER"));
     }
 
     @Test
     @DisplayName("Test d'échec lors de la création d'un utilisateur")
     public void testCreateUser_Failure() {
         // Arrange
-        // Simuler une exception lors de la création dans Keycloak
-        doThrow(new IllegalArgumentException("Error creating user in Keycloak")).when(keycloakService).createUser(any());
+        // Simuler une exception dans la methode void
+        doThrow(new ApiException("create user",
+                HttpStatus.BAD_REQUEST,
+                ErrorCode.USER_CREATION_FAILED.toString()))
+                .when(keycloakService).createUser(dto);
 
         // Act & Assert
-        Exception exception = assertThrows(IllegalArgumentException.class, () -> {
-            userService.createUser(dto);
+        ApiException exception = assertThrows(ApiException.class, () -> {
+            userService.createUser(this.dto);
         });
 
         // Vérifie que le message d'erreur contient la chaîne attendue
-        assertTrue(exception.getMessage().contains("Failed to create user"));
+        assertEquals(ErrorCode.USER_CREATION_FAILED.toString() , exception.getErrorCode());
 
         // Vérifie que la méthode de sauvegarde en base n'a pas été appelée
         verify(userRepository, never()).save(any());
@@ -112,11 +118,11 @@ class UserServiceTest {
     @DisplayName("Test de création d'un utilisateur avec DTO null")
     public void testCreateUser_NullDto() {
         // Act & Assert
-        Exception exception = assertThrows(IllegalArgumentException.class, () -> {
+        ApiException exception = assertThrows(ApiException.class, () -> {
             userService.createUser(null);
         });
 
-        assertEquals("This user dto is null", exception.getMessage());
+        assertEquals(ErrorCode.DB_ERROR.toString(), exception.getErrorCode());
 
         // Vérifier qu'aucune méthode n'a été appelée
         verifyNoInteractions(keycloakService);
@@ -146,10 +152,13 @@ class UserServiceTest {
     public void testGetUser_Failure() {
         // Arrange
         String keycloakId = "nonexistent";
-        when(userRepository.findByKeycloakId(keycloakId)).thenThrow(new RuntimeException("Database error"));
+        when(userRepository.findByKeycloakId(keycloakId))
+                .thenThrow(new ApiException("Failed to research user",
+                        HttpStatus.BAD_REQUEST,
+                        ErrorCode.USER_RESEARCH_FAILED.toString()));
 
         // Act & Assert
-        Exception exception = assertThrows(IllegalArgumentException.class, () -> {
+        Exception exception = assertThrows(ApiException.class, () -> {
             userService.getuser(keycloakId);
         });
 
@@ -193,11 +202,11 @@ class UserServiceTest {
         when(this.keycloakService.updateUser(dto)).thenReturn(false);
 
         // Act & Assert
-        Exception exception = assertThrows(IllegalArgumentException.class, () -> {
-            this.userService.updateUser(dto);
+        ApiException exception = assertThrows(ApiException.class, () -> {
+            this.userService.updateUser(this.dto);
         });
 
-        assertEquals("Failed to update user", exception.getMessage());
+        assertEquals(ErrorCode.USER_UPDATE_FAILED.toString(), exception.getErrorCode());
 
         // Vérifie que la méthode de sauvegarde en base n'a pas été appelée
         verify(this.userRepository, never()).save(any());
@@ -207,11 +216,11 @@ class UserServiceTest {
     @DisplayName("Test de mise à jour d'un utilisateur avec DTO null")
     public void testUpdateUser_NullDto() {
         // Act & Assert
-        Exception exception = assertThrows(IllegalArgumentException.class, () -> {
+        ApiException exception = assertThrows(ApiException.class, () -> {
             userService.updateUser(null);
         });
 
-        assertEquals("This user cannot be null or user ID empty", exception.getMessage());
+        assertEquals(ErrorCode.USER_RESEARCH_FAILED.toString(), exception.getErrorCode());
 
         // Vérifier qu'aucune méthode n'a été appelée
         verifyNoInteractions(keycloakService);
@@ -244,11 +253,11 @@ class UserServiceTest {
         when(keycloakService.removeUser(keycloakId)).thenReturn(false);
 
         // Act & Assert
-        Exception exception = assertThrows(IllegalArgumentException.class, () -> {
+        ApiException exception = assertThrows(ApiException.class, () -> {
             userService.deleteUser(keycloakId);
         });
 
-        assertEquals("Failed to delete user", exception.getMessage());
+        assertEquals(ErrorCode.KEYCLOAK_BAD_REQUEST.toString(), exception.getErrorCode());
 
         // Vérifier que la méthode de suppression en base n'a pas été appelée
         verify(userRepository, never()).deleteById(anyString());
@@ -264,11 +273,11 @@ class UserServiceTest {
         when(userRepository.existsById(keycloakId)).thenReturn(true);
 
         // Act & Assert
-        Exception exception = assertThrows(IllegalArgumentException.class, () -> {
+        ApiException exception = assertThrows(ApiException.class, () -> {
             userService.deleteUser(keycloakId);
         });
 
-        assertEquals("Failed to delete user", exception.getMessage());
+        assertEquals(ErrorCode.DB_ERROR.toString(), exception.getErrorCode());
 
         // Vérifier que les méthodes ont été appelées
         verify(keycloakService).removeUser(keycloakId);
@@ -279,11 +288,11 @@ class UserServiceTest {
     @DisplayName("Test de suppression d'un utilisateur avec ID null")
     public void testDeleteUser_NullId() {
         // Act & Assert
-        Exception exception = assertThrows(IllegalArgumentException.class, () -> {
+        ApiException exception = assertThrows(ApiException.class, () -> {
             userService.deleteUser(null);
         });
 
-        assertEquals("KeycloakId cannot be null or empty", exception.getMessage());
+        assertEquals(ErrorCode.BAD_REQUEST_PARAMETER.toString(), exception.getErrorCode());
 
         // Vérifier qu'aucune méthode n'a été appelée
         verifyNoInteractions(keycloakService);

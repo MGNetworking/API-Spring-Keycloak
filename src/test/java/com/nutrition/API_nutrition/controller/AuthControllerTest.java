@@ -23,6 +23,7 @@ import org.springframework.test.web.servlet.MockMvc;
 import java.time.LocalDate;
 import java.util.Optional;
 
+import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.doNothing;
 import static org.mockito.Mockito.when;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.*;
@@ -76,7 +77,7 @@ class AuthControllerTest {
         TokenResponseDto token = new TokenResponseDto();
         token.setAccessToken("mocked-jwt");
 
-        when(keycloakService.userExistsById("test-keycloak-id")).thenReturn(false);
+        when(keycloakService.checkUserExist(any(RegisterRequestDto.class))).thenReturn(false);
         when(userService.createUser(this.requestDto)).thenReturn(userResponse);
         when(keycloakService.login(
                 this.requestDto.getUserName(),
@@ -103,7 +104,7 @@ class AuthControllerTest {
                 .mappingToUser(this.requestDto.UserMapping());
 
         // Mocks
-        when(keycloakService.userExistsById(this.requestDto.getKeycloakId())).thenReturn(true);
+        when(keycloakService.checkUserExist(this.requestDto)).thenReturn(false);
         when(userService.updateUser(this.requestDto)).thenReturn(updatedUser);
 
         // Act & Assert
@@ -121,7 +122,8 @@ class AuthControllerTest {
 
         // Arrange
         String userId = "test-user-id";
-        when(keycloakService.userExistsById(userId)).thenReturn(true);
+        when(keycloakService.checkUserExist(any(RegisterRequestDto.class)))
+                .thenReturn(false);
         doNothing().when(userService).deleteUser(userId);
 
         // Act & Assert
@@ -136,8 +138,10 @@ class AuthControllerTest {
 
         // Arrange
         String userId = "test-user-id";
-        when(keycloakService.userExistsById(userId)).thenReturn(true);
-        when(userService.getuser(userId)).thenReturn(Optional.of(this.requestDto.UserMapping()));
+        when(keycloakService.checkUserExist(any(RegisterRequestDto.class)))
+                .thenReturn(false);
+        when(userService.getuser(userId))
+                .thenReturn(Optional.of(this.requestDto.UserMapping()));
 
         // Act & Assert
         mockMvc.perform(get("/api/v1/auth/{userId}", userId))

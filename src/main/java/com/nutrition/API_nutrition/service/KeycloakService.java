@@ -129,25 +129,29 @@ public class KeycloakService {
     }
 
     /**
-     * Assigne une liste de rôles Keycloak à un utilisateur spécifié par son identifiant.
+     * Assigne une liste de rôles Keycloak à un utilisateur au **niveau du realm**.
      *
-     * <p>Cette méthode effectue les étapes suivantes :
+     * <p>Contrairement à l’assignation de rôles au niveau d’un client spécifique (client-level roles),
+     * cette méthode affecte les rôles globaux du realm (realm-level roles), qui sont indépendants des permissions
+     * d’un client particulier.
+     *
+     * <p>La méthode effectue les étapes suivantes :
      * <ul>
-     *     <li>Pour chaque nom de rôle fourni, récupère la représentation du rôle depuis le realm Keycloak.</li>
-     *     <li>Journalise la liste des rôles récupérés.</li>
-     *     <li>Assigne ces rôles au niveau du realm à l'utilisateur correspondant à l'identifiant fourni.</li>
+     *     <li>Pour chaque nom de rôle fourni, récupère sa représentation depuis les rôles du realm.</li>
+     *     <li>Journalise les rôles récupérés pour traçabilité.</li>
+     *     <li>Assigne ces rôles au niveau du realm à l’utilisateur correspondant à l’identifiant fourni.</li>
      * </ul>
      *
-     * <p>Elle gère plusieurs cas d'erreurs possibles :
+     * <p>Elle gère les cas d’erreurs suivants :
      * <ul>
-     *     <li><strong>WebApplicationException</strong> : Erreur retournée par Keycloak avec code HTTP, journalisée et transformée en {@link ApiException}.</li>
-     *     <li><strong>ProcessingException</strong> : Erreur réseau ou de traitement local, transformée en {@link ApiException} avec statut 503.</li>
-     *     <li><strong>Exception</strong> : Toute autre erreur inattendue, transformée en {@link ApiException} avec statut 500.</li>
+     *     <li><strong>WebApplicationException</strong> : réponse d’erreur HTTP de Keycloak, journalisée et encapsulée dans une {@link ApiException}.</li>
+     *     <li><strong>ProcessingException</strong> : problème réseau ou local, transformé en {@link ApiException} avec un statut 503.</li>
+     *     <li><strong>Exception</strong> : toute erreur imprévue, encapsulée dans une {@link ApiException} avec un statut 500.</li>
      * </ul>
      *
-     * @param userId    l'identifiant Keycloak de l'utilisateur auquel les rôles doivent être assignés.
-     * @param roleNames la liste des noms des rôles à assigner.
-     * @throws ApiException si une erreur survient durant l'opération d'assignation des rôles.
+     * @param userId    l’identifiant Keycloak de l’utilisateur à qui assigner les rôles.
+     * @param roleNames la liste des noms des rôles realm-level à assigner.
+     * @throws ApiException si une erreur survient durant l’assignation des rôles.
      */
     public void addUserRolesRealm(String userId, List<String> roleNames) throws ApiException {
         try {
@@ -203,6 +207,31 @@ public class KeycloakService {
         }
     }
 
+    /**
+     * Assigne une liste de rôles Keycloak à un utilisateur au **niveau d’un client** spécifique.
+     *
+     * <p>Cette méthode permet d'affecter des rôles qui sont associés à un client particulier dans Keycloak,
+     * ce qui signifie que ces rôles sont liés à une application ou un service précis.
+     * Contrairement à l’assignation de rôles au niveau du realm, ces rôles sont spécifiques à un client (client-level roles).
+     *
+     * <p>La méthode effectue les étapes suivantes :
+     * <ul>
+     *     <li>Récupère le client correspondant à l'ID client spécifié dans la configuration Keycloak.</li>
+     *     <li>Récupère la représentation de chaque rôle à assigner dans le client spécifié.</li>
+     *     <li>Assigne ces rôles à l'utilisateur spécifié au niveau du client.</li>
+     * </ul>
+     *
+     * <p>Elle gère les cas d’erreurs suivants :
+     * <ul>
+     *     <li><strong>WebApplicationException</strong> : réponse d’erreur HTTP de Keycloak, journalisée et encapsulée dans une {@link ApiException}.</li>
+     *     <li><strong>ProcessingException</strong> : problème réseau ou local, transformé en {@link ApiException} avec un statut 503.</li>
+     *     <li><strong>Exception</strong> : toute erreur imprévue, encapsulée dans une {@link ApiException} avec un statut 500.</li>
+     * </ul>
+     *
+     * @param userId    l’identifiant Keycloak de l’utilisateur auquel les rôles doivent être assignés.
+     * @param roleNames la liste des noms des rôles client-level à assigner.
+     * @throws ApiException si une erreur survient lors de l’assignation des rôles.
+     */
     public void addUserRolesClient(String userId, List<String> roleNames) throws ApiException {
         try {
 
@@ -227,9 +256,7 @@ public class KeycloakService {
                 );
             }
 
-            String clientIdApi = customerSearching.get().getClientId();
             log.info("Search role client in API customers {}", customerSearching.get().getClientId());
-
 
             List<RoleRepresentation> roles = roleNames.stream()
                     .map(roleName -> {
@@ -253,6 +280,11 @@ public class KeycloakService {
                     .roles()
                     .clientLevel(customerSearching.get().getId())
                     .add(roles);
+
+        } catch (ApiException e) {
+            // Si une ApiException est déjà lancée, la capturer sans la modifier
+            log.error("The role could not be assigned to the user : {}", e.getMessage(), e);
+            throw e;  // Relance de l'exception sans modification
 
         } catch (WebApplicationException e) {
 
@@ -285,8 +317,25 @@ public class KeycloakService {
     }
 
     /**
-     * Authentifie un utilisateur et retourne les tokens
-     * Peut être utilisée comment accès token
+     * Authentifie un utilisateur auprès de Keycloak en utilisant le flux "password grant" de OpenID Connect.
+     *
+     * <p>Cette méthode envoie une requête de type POST au serveur Keycloak pour récupérer un token d'accès
+     * et un token de rafraîchissement (refresh token) via l'authentification par nom d'utilisateur et mot de passe.
+     * Elle utilise l'URL de token configurée pour le serveur Keycloak et inclut le client_id, client_secret,
+     * ainsi que les informations d'identification de l'utilisateur dans le corps de la requête.
+     *
+     * <p>En cas de succès, elle retourne un {@link TokenResponseDto} contenant les tokens nécessaires pour l'authentification.
+     *
+     * <p>Elle gère les erreurs suivantes :
+     * <ul>
+     *     <li><strong>RuntimeException</strong> : Si l'authentification échoue (réponse HTTP non 200), une exception est lancée.</li>
+     *     <li><strong>Exception</strong> : Toute autre erreur imprévue pendant le processus d'authentification est capturée et lancée sous forme de {@link RuntimeException}.</li>
+     * </ul>
+     *
+     * @param username le nom d'utilisateur pour l'authentification.
+     * @param password le mot de passe de l'utilisateur.
+     * @return un {@link TokenResponseDto} contenant l'access token, le refresh token et les durées d'expiration.
+     * @throws RuntimeException si l'authentification échoue ou si une erreur survient pendant le processus.
      */
     public TokenResponseDto login(String username, String password) {
 
@@ -331,7 +380,24 @@ public class KeycloakService {
     }
 
     /**
-     * Rafraîchit un token expiré
+     * Rafraîchit un token d'accès Keycloak à l'aide du refresh token.
+     *
+     * <p>Cette méthode envoie une requête de type POST au serveur Keycloak pour obtenir un nouveau token d'accès
+     * en utilisant un refresh token valide. Elle utilise l'URL de token configurée pour le serveur Keycloak et
+     * inclut le client_id, client_secret, ainsi que le refresh token dans le corps de la requête.
+     *
+     * <p>En cas de succès, elle retourne un {@link TokenResponseDto} contenant le nouveau access token,
+     * le refresh token, ainsi que les durées d'expiration associées.
+     *
+     * <p>Elle gère les erreurs suivantes :
+     * <ul>
+     *     <li><strong>RuntimeException</strong> : Si le rafraîchissement du token échoue (réponse HTTP non 200), une exception est lancée avec le message d'erreur.</li>
+     *     <li><strong>Exception</strong> : Toute autre erreur imprévue lors du processus de rafraîchissement du token est capturée et lancée sous forme de {@link RuntimeException}.</li>
+     * </ul>
+     *
+     * @param refreshToken le refresh token utilisé pour obtenir un nouveau access token.
+     * @return un {@link TokenResponseDto} contenant le nouveau access token, le refresh token, ainsi que les durées d'expiration.
+     * @throws RuntimeException si le rafraîchissement du token échoue ou si une erreur survient pendant le processus.
      */
     public TokenResponseDto refreshToken(String refreshToken) {
         try {
@@ -365,7 +431,16 @@ public class KeycloakService {
     }
 
     /**
-     * Vérifie si un token JWT est valide et non expiré
+     * Valide un token d'accès auprès du serveur d'authentification Keycloak.
+     *
+     * <p>Cette méthode envoie une requête HTTP GET à l'endpoint `userinfo` de Keycloak pour vérifier la validité du token d'accès fourni.
+     * Si le serveur répond avec un code de statut HTTP 200, cela signifie que le token est valide.
+     *
+     * <p>En cas d'erreur (par exemple, si le token est invalide, expiré, ou si un problème réseau survient),
+     * la méthode retourne `false`. Si la validation réussit, elle retourne `true`.
+     *
+     * @param token le token d'accès à valider.
+     * @return {@code true} si le token est valide, {@code false} sinon.
      */
     public boolean validateToken(String token) {
         try {
@@ -387,13 +462,24 @@ public class KeycloakService {
 
 
     /**
-     * Création d'un objet de représentation pour l'authentification,
-     * permettent de faire un mapping du DTO
+     * Crée une représentation d'utilisateur à partir des informations fournies dans un objet {@link RegisterRequestDto}.
      *
-     * @param dto RegisterRequestDto
-     * @return UserRepresentation
+     * <p>Cette méthode crée un objet {@link UserRepresentation} qui est utilisé pour représenter un utilisateur
+     * dans Keycloak. Elle définit les propriétés de l'utilisateur telles que le nom d'utilisateur, l'email, le prénom,
+     * et le nom de famille. Elle assigne également un mot de passe à l'utilisateur en créant un objet {@link CredentialRepresentation}.
+     *
+     * <p>Les étapes suivantes sont effectuées :
+     * <ul>
+     *     <li>Initialisation des informations de base de l'utilisateur (nom, email, prénom, nom de famille).</li>
+     *     <li>Création des informations d'authentification utilisateur (mot de passe).</li>
+     *     <li>Retour de l'objet {@link UserRepresentation} avec les informations nécessaires à l'enregistrement dans Keycloak.</li>
+     * </ul>
+     *
+     * @param dto l'objet contenant les informations de l'utilisateur à créer (nom, email, prénom, mot de passe, etc.).
+     * @return un objet {@link UserRepresentation} contenant les informations de l'utilisateur à enregistrer.
      */
     private static UserRepresentation getUserRepresentation(RegisterRequestDto dto) {
+
         UserRepresentation user = new UserRepresentation();
         user.setEnabled(true);
         user.setUsername(dto.getUserName());
@@ -416,40 +502,105 @@ public class KeycloakService {
     }
 
     /**
-     * Recherche un user par son id dans Keycloak
+     * Vérifie si un utilisateur existe dans Keycloak en fonction de l'identifiant Keycloak ou des informations du DTO.
+     *
+     * <p>Cette méthode cherche à déterminer si un utilisateur avec les informations fournies existe dans Keycloak.
+     * Elle effectue une recherche selon les critères suivants :
+     * <ul>
+     *     <li>Si l'identifiant Keycloak est fourni, elle recherche l'utilisateur directement par cet ID.</li>
+     *     <li>Sinon, elle effectue une recherche par nom d'utilisateur, prénom, nom de famille et email, en utilisant les informations contenues dans le DTO.</li>
+     * </ul>
+     *
+     * <p>En cas de succès, elle retourne {@code true} si un utilisateur correspondant aux critères est trouvé.
+     * Sinon, elle retourne {@code false}. En cas d'erreur (utilisateur non trouvé ou exception imprévue), la méthode
+     * retourne également {@code false}.
+     *
+     * <p>Les erreurs gérées incluent :
+     * <ul>
+     *     <li><strong>NotFoundException</strong> : Si l'utilisateur recherché par son identifiant Keycloak est introuvable, l'exception est capturée et {@code false} est retourné.</li>
+     *     <li><strong>Exception</strong> : Toute autre exception imprévue durant le processus de recherche est capturée, et {@code false} est retourné.</li>
+     * </ul>
+     *
+     * @param dto les informations de l'utilisateur à vérifier (nom, prénom, email, ID Keycloak).
+     * @return {@code true} si un utilisateur correspondant est trouvé, {@code false} sinon.
      */
-    public boolean userExistsById(String userId) {
-
-        if (userId == null || userId.isEmpty()) {
-            log.error("userId is null when calling userExistsById");
-            return false;
-        }
+    public boolean checkUserExist(RegisterRequestDto dto) {
 
         try {
-            UserRepresentation user = getKc()
-                    .realm(getRealm())
-                    .users()
-                    .get(userId)
-                    .toRepresentation();
 
-            log.info("User is {}", user);
-            return user != null;
+            if (dto.getKeycloakId() != null && !dto.getKeycloakId().isEmpty()) {
+
+                log.info("Searching user by keycloak ");
+                UserRepresentation user = getKc()
+                        .realm(getRealm())
+                        .users()
+                        .get(dto.getKeycloakId())
+                        .toRepresentation(); // → Lance NotFoundException si l'ID est introuvable
+                log.info("User is {}", user);
+
+                return user.getUsername().equals(dto.getUserName()) && user.getEmail().equals(dto.getEmail());
+
+            } else {
+
+                log.info("Searching user by dto Object ");
+                // récupérer la liste des utilisateurs possèdent un nom spécifique
+                List<UserRepresentation> listUser = getKc()
+                        .realm(getRealm())
+                        .users()
+                        .search(
+                                dto.getUserName(),
+                                dto.getFirstName(),
+                                dto.getLastName(),
+                                dto.getEmail(), null, null);
+
+                log.info("User first list {}", listUser.get(0));
+                this.displayList(listUser);
+
+                Optional<UserRepresentation> lsUserRep = listUser.stream()
+                        .filter(userRepresentation -> {
+                            return userRepresentation.getUsername()
+                                    .equals(
+                                            dto.getUserName()) &&
+                                    userRepresentation.getEmail().equals(dto.getEmail()
+                                    );
+                        }).findFirst();
+
+                return lsUserRep.isPresent();
+
+            }
 
         } catch (NotFoundException e) {
-            log.error("Error user not Found {}", userId, e);
+            log.error("Error user not Found {}", dto.getKeycloakId(), e);
             return false;
         } catch (Exception e) {
-            log.error("Unexpected error {}", userId, e);
+            log.error("Unexpected error {}", dto.getKeycloakId(), e);
             return false;
         }
 
     }
 
     /**
-     * Met à jour les informations d'un utilisateur dans le realm cibler
+     * Met à jour les informations d'un utilisateur existant dans Keycloak.
      *
-     * @param dto RegisterRequestDto
-     * @return boolean status
+     * <p>Cette méthode effectue les étapes suivantes pour mettre à jour les informations d'un utilisateur dans Keycloak :
+     * <ul>
+     *     <li>Récupère l'utilisateur à partir de son identifiant Keycloak.</li>
+     *     <li>Met à jour le nom d'utilisateur, prénom, nom de famille et adresse e-mail avec les informations du DTO.</li>
+     *     <li>Si un mot de passe est fourni dans le DTO, il sera utilisé pour la mise à jour. Si aucun mot de passe n'est fourni, une exception est levée.</li>
+     *     <li>Effectue la mise à jour de l'utilisateur dans Keycloak.</li>
+     * </ul>
+     *
+     * <p>La méthode retourne {@code true} si la mise à jour de l'utilisateur a été effectuée avec succès.
+     * Si une erreur se produit, comme un utilisateur introuvable ou un mot de passe manquant, elle retourne {@code false}.
+     *
+     * <p>Les erreurs gérées incluent :
+     * <ul>
+     *     <li><strong>RuntimeException</strong> : Si aucun mot de passe n'est fourni, une exception est levée.</li>
+     *     <li><strong>Exception</strong> : Toute autre exception imprévue durant la mise à jour de l'utilisateur est capturée et journalisée.</li>
+     * </ul>
+     *
+     * @param dto les informations de l'utilisateur à mettre à jour (nom d'utilisateur, prénom, nom de famille, e-mail, et mot de passe).
+     * @return {@code true} si la mise à jour de l'utilisateur a été effectuée avec succès, {@code false} en cas d'erreur.
      */
     public boolean updateUser(RegisterRequestDto dto) {
 
@@ -485,9 +636,19 @@ public class KeycloakService {
     }
 
     /**
-     * delete un user dans le realm cibler
+     * Supprime un utilisateur de Keycloak en utilisant son identifiant.
      *
-     * @param userId String
+     * <p>Cette méthode tente de supprimer un utilisateur à partir de son identifiant Keycloak.
+     * Si l'utilisateur est trouvé et supprimé avec succès, la méthode retourne {@code true}.
+     * Si une erreur se produit pendant la suppression, elle retourne {@code false}.
+     *
+     * <p>Les erreurs possibles incluent :
+     * <ul>
+     *     <li><strong>Exception</strong> : Toute erreur imprévue durant la suppression de l'utilisateur est capturée et journalisée.</li>
+     * </ul>
+     *
+     * @param userId l'identifiant Keycloak de l'utilisateur à supprimer.
+     * @return {@code true} si l'utilisateur a été supprimé avec succès, {@code false} en cas d'erreur.
      */
     public boolean removeUser(String userId) {
 
@@ -508,8 +669,21 @@ public class KeycloakService {
     }
 
     /**
-     * Déconnecte un utilisateur
+     * Déconnecte un utilisateur de Keycloak en utilisant son identifiant.
+     *
+     * <p>Cette méthode tente de fermer la session de l'utilisateur spécifié par son identifiant
+     * Keycloak. Si la déconnexion est réussie, la méthode retourne {@code true}.
+     * Si une erreur se produit pendant la déconnexion, elle retourne {@code false}.
+     *
+     * <p>Les erreurs possibles incluent :
+     * <ul>
+     *     <li><strong>Exception</strong> : Toute erreur imprévue durant la déconnexion de l'utilisateur est capturée et journalisée.</li>
+     * </ul>
+     *
+     * @param userId l'identifiant Keycloak de l'utilisateur à déconnecter.
+     * @return {@code true} si la déconnexion a été effectuée avec succès, {@code false} en cas d'erreur.
      */
+
     public boolean logout(String userId) {
 
         try {
@@ -529,7 +703,20 @@ public class KeycloakService {
     }
 
     /**
-     * Réinitialise le mot de passe d'un utilisateur
+     * Réinitialise le mot de passe d'un utilisateur dans Keycloak.
+     *
+     * <p>Cette méthode permet de modifier le mot de passe d'un utilisateur existant en utilisant son identifiant {@code userId}
+     * et un nouveau mot de passe {@code newPassword}. Le mot de passe est défini comme non temporaire.
+     *
+     * <p>Les étapes suivantes sont effectuées :
+     * <ul>
+     *     <li>Création d'un objet {@link CredentialRepresentation} avec le type "password" et la valeur du nouveau mot de passe.</li>
+     *     <li>Appel de l'API Keycloak pour réinitialiser le mot de passe de l'utilisateur spécifié.</li>
+     * </ul>
+     *
+     * @param userId      l'identifiant de l'utilisateur dont le mot de passe doit être réinitialisé.
+     * @param newPassword le nouveau mot de passe de l'utilisateur.
+     * @throws RuntimeException si une erreur se produit lors de la réinitialisation du mot de passe.
      */
     public void resetPassword(String userId, String newPassword) {
 
@@ -552,10 +739,15 @@ public class KeycloakService {
     }
 
     /**
-     * Permet de logger les listes
+     * Affiche une liste d'objets sous forme de chaîne JSON dans les logs.
      *
-     * @param ls
-     * @param <T>
+     * <p>Cette méthode prend une liste d'objets génériques {@code ls}, puis sérialise cette liste en chaîne JSON
+     * à l'aide de l'objet {@link ObjectMapper} de Jackson. La chaîne résultante est ensuite affichée dans les logs
+     * à l'aide du niveau {@code INFO}. Si une erreur survient lors de la sérialisation, un message d'erreur est enregistré
+     * dans les logs.
+     *
+     * @param ls  la liste des objets à afficher sous forme JSON dans les logs.
+     * @param <T> le type des objets dans la liste.
      */
     <T> void displayList(List<T> ls) {
         try {

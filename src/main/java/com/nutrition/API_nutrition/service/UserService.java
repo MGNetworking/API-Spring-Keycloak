@@ -42,7 +42,7 @@ public class UserService {
             throw new ApiException(
                     "This dto for create user is null",
                     HttpStatus.NOT_FOUND,
-                    HttpStatus.NOT_FOUND.toString()
+                    ErrorCode.DB_ERROR.toString()
             );
         }
 
@@ -80,6 +80,11 @@ public class UserService {
             User updateUser = this.userRepository.save(dtoSave.UserMapping());
             userRepository.flush();
             return new UserResponseDto().mappingToUser(updateUser);
+
+        } catch (ApiException e) {
+            // Si une ApiException est déjà lancée, la capturer sans la modifier
+            log.error("API error when create user: {}", e.getMessage(), e);
+            throw e;  // Relance de l'exception sans modification
 
         } catch (DataIntegrityViolationException e) {
             // Gère les violations de contraintes (clés uniques, NOT NULL, etc.)
@@ -151,7 +156,9 @@ public class UserService {
 
         if (dto == null || dto.getKeycloakId().isEmpty()) {
             log.info("This dto for update User is null");
-            throw new IllegalArgumentException("This user cannot be null or user ID empty");
+            throw new ApiException("This user cannot be null or user ID empty",
+                    HttpStatus.BAD_REQUEST,
+                    ErrorCode.USER_RESEARCH_FAILED.toString());
         }
 
         try {
@@ -176,6 +183,11 @@ public class UserService {
                 throw e;
             }
 
+
+        } catch (ApiException e) {
+            // Si une ApiException est déjà lancée, la capturer sans la modifier
+            log.error("API error when updating user: {}", e.getMessage(), e);
+            throw e;  // Relance de l'exception sans modification
 
         } catch (DataIntegrityViolationException e) {
             // Gère les violations de contraintes (clés uniques, NOT NULL, etc.)
@@ -245,6 +257,11 @@ public class UserService {
             }
 
             log.info("User with keycloakId {} successfully deleted", keycloakId);
+
+        } catch (ApiException e) {
+            // Si une ApiException est déjà lancée, la capturer sans la modifier
+            log.error("API error when delete user: {}", e.getMessage(), e);
+            throw e;  // Relance de l'exception sans modification
 
         } catch (DataIntegrityViolationException e) {
             // Gère les violations de contraintes (clés uniques, NOT NULL, etc.)

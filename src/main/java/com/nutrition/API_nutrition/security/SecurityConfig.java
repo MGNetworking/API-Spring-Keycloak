@@ -69,16 +69,25 @@ public class SecurityConfig {
     }
 
     /**
-     * Ce convertisseur fait le travail suivant:
+     * Bean définissant un convertisseur d'authentification JWT pour l'intégration avec Keycloak.
+     * <p>
+     * Ce convertisseur extrait les rôles présents dans le claim "realm_access" du token JWT émis par Keycloak,
+     * puis les transforme en instances de {@link SimpleGrantedAuthority} en appliquant le préfixe "ROLE_",
+     * conformément à la convention de Spring Security.
+     * <p>
+     * Il permet ainsi à Spring Security de créer une instance de {@link AbstractAuthenticationToken}
+     * à partir d'un token {@link Jwt} contenant les claims Keycloak.
+     *
+     * <p>Le processus de conversion suit les étapes suivantes :
      * <ul>
-     *     <li>1. Reçoit un objet Jwt qui contient déjà tous les claims décodés du token</li>
-     *     <li>2. Recherche le claim spécifique realm_access qui, dans Keycloak, contient la liste des rôles</li>
-     *     <li>3. Extrait la liste des rôles de ce claim</li>
-     *     <li>4. Convertit chaque rôle en un objet SimpleGrantedAuthority avec le préfixe ROLE_ (convention Spring Security)</li>
-     *     <li>5. Retourne cette liste d'autorités qui sera utilisée pour les vérifications d'autorisation</li>
+     *     <li>1. Reçoit un objet {@link Jwt} contenant les claims décodés du token</li>
+     *     <li>2. Recherche le claim nommé {@code realm_access}, propre à Keycloak</li>
+     *     <li>3. Extrait la liste des rôles à partir de ce claim</li>
+     *     <li>4. Convertit chaque rôle en {@link SimpleGrantedAuthority} avec le préfixe {@code ROLE_}</li>
+     *     <li>5. Retourne cette liste d'autorités, utilisée par Spring Security pour les vérifications d'accès</li>
      * </ul>
      *
-     * @return
+     * @return un convertisseur JWT en {@link AbstractAuthenticationToken} prêt à être utilisé par Spring Security
      */
     @Bean
     public Converter<Jwt, ? extends AbstractAuthenticationToken> keycloakJwtAuthenticationConverter() {

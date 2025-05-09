@@ -29,13 +29,13 @@ import static org.mockito.Mockito.when;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.*;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.*;
 
-@WebMvcTest(AuthController.class)
+@WebMvcTest(UsersController.class)
 @ActiveProfiles("test")
 @AutoConfigureMockMvc(addFilters = false)
 @TestPropertySource(properties = {
         "spring.sql.init.mode=never"
 })
-class AuthControllerTest {
+class UsersControllerTest {
 
     @Autowired
     private MockMvc mockMvc;
@@ -84,7 +84,8 @@ class AuthControllerTest {
                 this.requestDto.getPassword())).thenReturn(token);
 
         // Act & Assert
-        mockMvc.perform(post("/api/v1/auth")
+        String uri = UsersController.BASE_USERS + UsersController.REGISTER;
+        mockMvc.perform(post(uri)
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(this.objectMapper.writeValueAsString(this.requestDto)))
                 .andExpect(status().isCreated())
@@ -108,7 +109,8 @@ class AuthControllerTest {
         when(userService.updateUser(this.requestDto)).thenReturn(updatedUser);
 
         // Act & Assert
-        mockMvc.perform(put("/api/v1/auth/user")
+        String uri = UsersController.BASE_USERS + UsersController.UPDATE_USER;
+        mockMvc.perform(put(uri)
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(objectMapper.writeValueAsString(this.requestDto)))
                 .andExpect(status().isOk())
@@ -127,7 +129,8 @@ class AuthControllerTest {
         doNothing().when(userService).deleteUser(userId);
 
         // Act & Assert
-        mockMvc.perform(delete("/api/v1/auth/{userId}", userId))
+        String uri = UsersController.BASE_USERS + UsersController.DELETE_USER;
+        mockMvc.perform(delete(uri, userId))
                 .andExpect(status().isNoContent())
                 .andExpect(jsonPath("$.status").value("NO_CONTENT"));
     }
@@ -144,7 +147,8 @@ class AuthControllerTest {
                 .thenReturn(Optional.of(this.requestDto.UserMapping()));
 
         // Act & Assert
-        mockMvc.perform(get("/api/v1/auth/{userId}", userId))
+        String uri = UsersController.BASE_USERS + UsersController.GET_USER_ID;
+        mockMvc.perform(get(uri, userId))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.status").value("OK"))
                 .andExpect(jsonPath("$.data.userName").value("Username"));

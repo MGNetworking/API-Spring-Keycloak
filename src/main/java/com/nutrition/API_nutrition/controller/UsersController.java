@@ -24,13 +24,23 @@ import java.util.Optional;
 
 @Slf4j
 @RestController
-@RequestMapping("/api/v1/auth")
-@Tag(name = "Keycloak User Management", description = "Operations related to users")
+@RequestMapping(UsersController.BASE_USERS)
+@Tag(
+        name = "Authentification",
+        description = "Endpoints liés à la connexion, déconnexion et au rafraîchissement du token JWT."
+)
 @RequiredArgsConstructor
-public class AuthController {
+public class UsersController {
+
+    public static final String BASE_USERS = "/api/v1/users";
+    public static final String REGISTER = "/register";
+    public static final String UPDATE_USER = "/user";
+    public static final String DELETE_USER = "/{userId}";
+    public static final String GET_USER_ID = "/{userId}";
 
     private final KeycloakService keycloakService;
     private final UserService userService;
+
 
     /**
      * Crée un nouvel utilisateur dans le système et retourne son profil accompagné d’un token JWT.
@@ -60,7 +70,7 @@ public class AuthController {
      * @see KeycloakService#login(String, String)
      * @see UserService#createUser(RegisterRequestDto)
      */
-    @Tag(name = "login")
+    @Tag(name = "register")
     @Operation(
             summary = "Créer un nouvel utilisateur",
             description = "Crée un utilisateur dans le système et retourne son profil avec un token d'authentification."
@@ -70,7 +80,7 @@ public class AuthController {
             @ApiResponse(responseCode = "409", description = "L'utilisateur existe déjà"),
             @ApiResponse(responseCode = "400", description = "Requête invalide", content = @Content),
     })
-    @PostMapping
+    @PostMapping(value = REGISTER)
     public ResponseEntity<GenericApiResponse<ApiResponseData>> postUser(
             @Valid @RequestBody RegisterRequestDto userDto) {
 
@@ -132,7 +142,7 @@ public class AuthController {
      * @see UserService#updateUser(RegisterRequestDto)
      */
     @Tag(name = "update user")
-    @PutMapping(value = "/user")
+    @PutMapping(value = UPDATE_USER)
     public ResponseEntity<GenericApiResponse<ApiResponseData>> updateUser(
             @Valid @RequestBody RegisterRequestDto userDto) {
 
@@ -198,7 +208,7 @@ public class AuthController {
      * @see UserService#deleteUser(String)
      */
     @Tag(name = "delete user")
-    @DeleteMapping(value = "/{userId}")
+    @DeleteMapping(value = DELETE_USER)
     public ResponseEntity<GenericApiResponse<String>> deleteUser(
             @PathVariable String userId) {
 
@@ -259,7 +269,7 @@ public class AuthController {
      * @see UserService#getuser(String)
      */
     @Tag(name = "Get user")
-    @GetMapping(value = "/{userId}")
+    @GetMapping(value = GET_USER_ID)
     public ResponseEntity<GenericApiResponse<ApiResponseData>> getUser(
             @PathVariable String userId) {
 

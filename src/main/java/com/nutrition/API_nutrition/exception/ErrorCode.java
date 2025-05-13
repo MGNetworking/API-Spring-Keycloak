@@ -8,7 +8,10 @@ public enum ErrorCode {
     USER_RESEARCH_FAILED,
     USER_UPDATE_FAILED,
     USER_ROLE_ASSIGNMENT_FAILED,
-    KEYCLOAK_BAD_REQUEST, // erreur Keycloak
+    KEYCLOAK_BAD_REQUEST,
+    KEYCLOAK_UNAUTHORIZED,
+    KEYCLOAK_FORBIDDEN,
+    KEYCLOAK_UNEXPECTED_ERROR,
     NETWORK_ERROR, // erreur réseau
     DB_ERROR, // Erreur en base de donnée
     TECHNICAL_ERROR, // Exception générale

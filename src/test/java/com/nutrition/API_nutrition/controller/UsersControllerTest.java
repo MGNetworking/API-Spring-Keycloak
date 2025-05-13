@@ -24,10 +24,12 @@ import java.time.LocalDate;
 import java.util.Optional;
 
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.Mockito.doNothing;
 import static org.mockito.Mockito.when;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.*;
-import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.*;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
 @WebMvcTest(UsersController.class)
 @ActiveProfiles("test")
@@ -52,7 +54,7 @@ class UsersControllerTest {
     RegisterRequestDto requestDto;
 
     @BeforeEach
-    public void init() {
+    public void setUp() {
         this.requestDto = new RegisterRequestDto();
         //requestDto.setKeycloakId("keycloak-id");
         requestDto.setUserName("Username");
@@ -87,12 +89,12 @@ class UsersControllerTest {
         String uri = UsersController.BASE_USERS + UsersController.REGISTER;
         mockMvc.perform(post(uri)
                         .contentType(MediaType.APPLICATION_JSON)
+                        .header("Authorization", "Bearer mocked-jwt")
                         .content(this.objectMapper.writeValueAsString(this.requestDto)))
                 .andExpect(status().isCreated())
-                .andExpect(header().string("Authorization", "Bearer mocked-jwt"))
                 .andExpect(jsonPath("$.status").value("CREATED"))
-                .andExpect(jsonPath("$.data.userName").value("Username"));
-
+                .andExpect(jsonPath("$.data.userResponseDto.userName").value("Username"))
+                .andExpect(jsonPath("$.data.token.accessToken").value("mocked-jwt"));
     }
 
     @Test
@@ -104,18 +106,25 @@ class UsersControllerTest {
         UserResponseDto updatedUser = new UserResponseDto()
                 .mappingToUser(this.requestDto.UserMapping());
 
+        String authHeaderMock = "fake-token-for-testing";
+        TokenResponseDto responseDto = new TokenResponseDto();
+        responseDto.setAccessToken(authHeaderMock);
+
         // Mocks
         when(keycloakService.checkUserExist(this.requestDto)).thenReturn(false);
         when(userService.updateUser(this.requestDto)).thenReturn(updatedUser);
+        when(this.keycloakService.refreshToken(anyString())).thenReturn(responseDto);
 
         // Act & Assert
         String uri = UsersController.BASE_USERS + UsersController.UPDATE_USER;
         mockMvc.perform(put(uri)
                         .contentType(MediaType.APPLICATION_JSON)
+                        .header("Authorization", "Bearer " + authHeaderMock)
                         .content(objectMapper.writeValueAsString(this.requestDto)))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.status").value("OK"))
-                .andExpect(jsonPath("$.data.userName").value("Username"));
+                .andExpect(jsonPath("$.data.userResponseDto.userName").value("Username"))
+                .andExpect(jsonPath("$.data.token.accessToken").value(authHeaderMock));
     }
 
     @Test

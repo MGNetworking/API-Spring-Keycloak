@@ -14,6 +14,7 @@ you need a running Keycloak
     * [Gestion Utilisateurs](#gestion-utilisateurs)
     * [Authentification](#authentification)
     * [Administration](#administration)
+* [Codes de Réponse HTTP](#codes-de-réponse-http)
 * [Maven Wrapper: How It Works](#maven-wrapper-how-it-works)
     * [What is Maven Wrapper?](#what-is-maven-wrapper)
     * [How it works](#how-it-works)
@@ -47,7 +48,7 @@ Launching unit tests with profile.
 Access browser:
 
 * [Database H2 Access IP](http://localhost:8080/h2-console)
-* [Doc Swagger IP](#http://localhost:8080/swagger-ui/index.html”)
+* [Doc Swagger IP](#http://localhost:8080/swagger-ui/index.html")
 
 Database H2 password: ``password``
 
@@ -87,6 +88,20 @@ Security is managed through the `SecurityConfig` class, with the following featu
 |--------------------------|---------|--------------------------------|-------------|---------------|
 | /api/v1/admin/users      | GET     | Liste tous les utilisateurs    | ROLE_ADMIN  | 200           |
 | /api/v1/admin/users/{id} | PUT     | Modification admin utilisateur | ROLE_ADMIN  | 200, 404      |
+
+## Codes de Réponse HTTP
+
+L'API utilise les codes de statut HTTP standards suivants:
+
+| Code | Description                                                                         |
+|------|-------------------------------------------------------------------------------------|
+| 200  | **OK** - La requête a réussi                                                        |
+| 201  | **Created** - Ressource créée avec succès                                           |
+| 204  | **No Content** - Requête traitée avec succès mais aucun contenu à renvoyer          |
+| 400  | **Bad Request** - La requête contient des erreurs ou des données invalides          |
+| 401  | **Unauthorized** - Authentification nécessaire ou échec de l'authentification       |
+| 404  | **Not Found** - La ressource demandée n'existe pas                                  |
+| 409  | **Conflict** - La requête ne peut être traitée en raison d'un conflit (ex: doublon) |
 
 ## Maven Wrapper: How It Works
 

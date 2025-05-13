@@ -1,11 +1,9 @@
 package com.nutrition.API_nutrition.controller;
 
-import com.nutrition.API_nutrition.model.dto.ApiResponseData;
-import com.nutrition.API_nutrition.model.dto.RegisterRequestDto;
-import com.nutrition.API_nutrition.model.dto.TokenResponseDto;
-import com.nutrition.API_nutrition.model.dto.UserResponseDto;
+import com.nutrition.API_nutrition.model.dto.*;
 import com.nutrition.API_nutrition.model.entity.User;
 import com.nutrition.API_nutrition.model.response.GenericApiResponse;
+import com.nutrition.API_nutrition.security.AccessKeycloak;
 import com.nutrition.API_nutrition.service.KeycloakService;
 import com.nutrition.API_nutrition.service.UserService;
 import io.swagger.v3.oas.annotations.Operation;
@@ -18,6 +16,7 @@ import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.Optional;
@@ -91,26 +90,27 @@ public class UsersController {
                             HttpStatus.CONFLICT,
                             HttpStatus.CONFLICT.value(),
                             "The user is already exists",
-                            "/api/v1/auth",
+                            BASE_USERS + REGISTER,
                             userDto
                     ));
         }
 
         // Créer un user
         UserResponseDto userResponseDto = this.userService.createUser(userDto);
-        TokenResponseDto tokens = keycloakService.login(
+        TokenResponseDto token = keycloakService.login(
                 userDto.getUserName(),
                 userDto.getPassword());
 
         return ResponseEntity
                 .status(HttpStatus.CREATED)
-                .header("Authorization", "Bearer " + tokens.getAccessToken())
                 .body(new GenericApiResponse<ApiResponseData>(
                         HttpStatus.CREATED,
                         HttpStatus.CREATED.value(),
                         "The user was Successfully create",
-                        "/api/v1/auth",
-                        userResponseDto
+                        BASE_USERS + REGISTER,
+                        new ResponsUserTokenDto(
+                                userResponseDto,
+                                token)
                 ));
     }
 
@@ -122,11 +122,14 @@ public class UsersController {
      *     <li>Vérifie si l'utilisateur existe dans Keycloak via {@code keycloakService.checkUserExist()}.</li>
      *     <li>Si l'utilisateur n'existe pas, renvoie une réponse HTTP 404 (Not Found).</li>
      *     <li>Sinon, tente de mettre à jour l'utilisateur via {@code userService.updateUser()}.</li>
-     *     <li>Si la mise à jour réussit (présence d'un {@code keycloakId}), renvoie une réponse HTTP 200 (OK) avec les données mises à jour.</li>
+     *     <li>Si la mise à jour réussit (présence d'un {@code keycloakId}), renvoie une réponse HTTP 200 (OK) avec les
+     *     données mises à jour.</li>
      *     <li>Si la mise à jour échoue, renvoie une réponse HTTP 400 (Bad Request).</li>
      * </ol>
      *
-     * @param userDto Les données de l'utilisateur à mettre à jour. Validées automatiquement grâce à {@code @Valid}.
+     * @param userDto    Données de l'utilisateur à mettre à jour (inclut l'identifiant Keycloak).
+     *                   Validées avec {@code @Valid}.
+     * @param authHeader En-tête HTTP Authorization contenant le token Bearer pour valider l'accès.
      * @return Une {@link ResponseEntity} contenant un {@link GenericApiResponse} avec :
      * <ul>
      *     <li>HTTP 200 si la mise à jour réussit.</li>
@@ -143,8 +146,10 @@ public class UsersController {
      */
     @Tag(name = "update user")
     @PutMapping(value = UPDATE_USER)
+    @PreAuthorize("@accessKeycloak.isAuthenticatedAndAuthorized(#userDto.keycloakId)")
     public ResponseEntity<GenericApiResponse<ApiResponseData>> updateUser(
-            @Valid @RequestBody RegisterRequestDto userDto) {
+            @Valid @RequestBody RegisterRequestDto userDto,
+            @RequestHeader("Authorization") String authHeader) {
 
         // check si l'user exist dans keycloak
         if (this.keycloakService.checkUserExist(userDto)) {
@@ -154,21 +159,27 @@ public class UsersController {
                             HttpStatus.NOT_FOUND,
                             HttpStatus.NOT_FOUND.value(),
                             "User not exist, Update is impossible",
-                            "/api/v1/auth/user",
+                            BASE_USERS + UPDATE_USER,
                             null
                     ));
         }
 
-        UserResponseDto dto = this.userService.updateUser(userDto);
-        if (dto.getKeycloakId() != null) {
+        // Met à jour l'objet
+        UserResponseDto userResponseDto = this.userService.updateUser(userDto);
+
+        // met à jour le token
+        String accessToken = authHeader.replace("Bearer ", "");
+        TokenResponseDto tokenDto = this.keycloakService.refreshToken(accessToken);
+
+        if (userResponseDto.getKeycloakId() != null) {
             return ResponseEntity
                     .status(HttpStatus.OK)
                     .body(new GenericApiResponse<ApiResponseData>(
                             HttpStatus.OK,
                             HttpStatus.OK.value(),
                             "This user is update with successfully",
-                            "/api/v1/auth/user",
-                            dto
+                            BASE_USERS + UPDATE_USER,
+                            new ResponsUserTokenDto(userResponseDto, tokenDto)
                     ));
         }
 
@@ -178,7 +189,7 @@ public class UsersController {
                         HttpStatus.BAD_REQUEST,
                         HttpStatus.BAD_REQUEST.value(),
                         "The update was a failure",
-                        "/api/v1/auth/user",
+                        BASE_USERS + UPDATE_USER,
                         userDto
                 ));
 
@@ -189,6 +200,7 @@ public class UsersController {
      *
      * <p>Cette méthode :
      * <ol>
+     *     <li>Vérifie les droits d'accès de l'utilisateur appelant via {@link AccessKeycloak#hasAccessToUser(String)}.</li>
      *     <li>Construit un objet {@link RegisterRequestDto} avec l'identifiant utilisateur.</li>
      *     <li>Vérifie si l'utilisateur existe dans Keycloak via {@code keycloakService.checkUserExist()}.</li>
      *     <li>Si l'utilisateur n'existe pas, renvoie une réponse HTTP 404 (Not Found).</li>
@@ -209,6 +221,7 @@ public class UsersController {
      */
     @Tag(name = "delete user")
     @DeleteMapping(value = DELETE_USER)
+    @PreAuthorize("@accessKeycloak.isAuthenticatedAndAuthorized(#userId)")
     public ResponseEntity<GenericApiResponse<String>> deleteUser(
             @PathVariable String userId) {
 
@@ -222,11 +235,10 @@ public class UsersController {
                             HttpStatus.NOT_FOUND,
                             HttpStatus.NOT_FOUND.value(),
                             "The user is not found",
-                            "/api/v1/auth/" + userId,
+                            BASE_USERS + "/" + userId,
                             null
                     ));
         }
-
         this.userService.deleteUser(userId);
         return ResponseEntity
                 .status(HttpStatus.NO_CONTENT)
@@ -234,7 +246,7 @@ public class UsersController {
                         HttpStatus.NO_CONTENT,
                         HttpStatus.NO_CONTENT.value(),
                         "This user is delete with successfully",
-                        "/api/v1/auth/" + userId,
+                        BASE_USERS + "/" + userId,
                         null
                 ));
 
@@ -270,6 +282,7 @@ public class UsersController {
      */
     @Tag(name = "Get user")
     @GetMapping(value = GET_USER_ID)
+    @PreAuthorize("@accessKeycloak.hasAccessToUser(#userId)")
     public ResponseEntity<GenericApiResponse<ApiResponseData>> getUser(
             @PathVariable String userId) {
 
@@ -284,7 +297,7 @@ public class UsersController {
                             HttpStatus.NOT_FOUND,
                             HttpStatus.NOT_FOUND.value(),
                             "The user is not found",
-                            "/api/v1/auth/" + userId,
+                            BASE_USERS + "/" + userId,
                             null
                     ));
         }
@@ -301,7 +314,7 @@ public class UsersController {
                             HttpStatus.OK,
                             HttpStatus.OK.value(),
                             "User successfully found",
-                            "/api/v1/auth/" + userId,
+                            BASE_USERS + "/" + userId,
                             dtoUser
                     ));
         } else {
@@ -311,7 +324,7 @@ public class UsersController {
                             HttpStatus.NOT_FOUND,
                             HttpStatus.NOT_FOUND.value(),
                             "The user is not found in DB , but exist in keycloak",
-                            "/api/v1/auth/" + userId,
+                            BASE_USERS + "/" + userId,
                             null
                     ));
         }

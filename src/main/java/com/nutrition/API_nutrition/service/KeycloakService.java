@@ -324,12 +324,17 @@ public class KeycloakService {
      * Elle utilise l'URL de token configurée pour le serveur Keycloak et inclut le client_id, client_secret,
      * ainsi que les informations d'identification de l'utilisateur dans le corps de la requête.
      *
-     * <p>En cas de succès, elle retourne un {@link TokenResponseDto} contenant les tokens nécessaires pour l'authentification.
+     * <p>En cas de succès, elle retourne un {@link TokenResponseDto} contenant les tokens nécessaires pour
+     * l'authentification.
      *
      * <p>Elle gère les erreurs suivantes :
      * <ul>
-     *     <li><strong>RuntimeException</strong> : Si l'authentification échoue (réponse HTTP non 200), une exception est lancée.</li>
-     *     <li><strong>Exception</strong> : Toute autre erreur imprévue pendant le processus d'authentification est capturée et lancée sous forme de {@link RuntimeException}.</li>
+     *     <li><strong>RuntimeException</strong> : Si l'authentification échoue (réponse HTTP non 200), une exception
+     *     est lancée.
+     *     </li>
+     *     <li><strong>Exception</strong> : Toute autre erreur imprévue pendant le processus d'authentification est
+     *     capturée et lancée sous forme de {@link RuntimeException}.
+     *     </li>
      * </ul>
      *
      * @param username le nom d'utilisateur pour l'authentification.
@@ -337,7 +342,7 @@ public class KeycloakService {
      * @return un {@link TokenResponseDto} contenant l'access token, le refresh token et les durées d'expiration.
      * @throws RuntimeException si l'authentification échoue ou si une erreur survient pendant le processus.
      */
-    public TokenResponseDto login(String username, String password) {
+    public TokenResponseDto login(String username, String password) throws ApiException {
 
         try {
 
@@ -359,8 +364,32 @@ public class KeycloakService {
             );
 
             if (response.statusCode() != 200) {
-                log.error("Authentication failed for this user {} and password: {}", username, password);
-                throw new RuntimeException("Authentication failed: " + response.body());
+                log.error("Authentication failed for user '{}'. Status: {}, Response: {}",
+                        username, response.statusCode(), response.body());
+
+                String errorMessage = "Authentication failed with Keycloak. Reason: %s".formatted(response.body());
+                switch (response.statusCode()) {
+                    case 400 -> throw new ApiException(
+                            errorMessage,
+                            HttpStatus.BAD_REQUEST,
+                            ErrorCode.KEYCLOAK_BAD_REQUEST.toString()
+                    );
+                    case 401 -> throw new ApiException(
+                            "Invalid credentials. " + errorMessage,
+                            HttpStatus.UNAUTHORIZED,
+                            ErrorCode.KEYCLOAK_UNAUTHORIZED.toString()
+                    );
+                    case 403 -> throw new ApiException(
+                            "Access forbidden. " + errorMessage,
+                            HttpStatus.FORBIDDEN,
+                            ErrorCode.KEYCLOAK_FORBIDDEN.toString()
+                    );
+                    default -> throw new ApiException(
+                            "Unexpected error during authentication. " + errorMessage,
+                            HttpStatus.INTERNAL_SERVER_ERROR,
+                            ErrorCode.KEYCLOAK_UNEXPECTED_ERROR.toString()
+                    );
+                }
             }
 
             // mapping to JSON response
@@ -375,7 +404,11 @@ public class KeycloakService {
             );
 
         } catch (Exception e) {
-            throw new RuntimeException("Authentication process failed", e);
+            throw new ApiException(
+                    "A technical error has occurred during the authentication request",
+                    HttpStatus.INTERNAL_SERVER_ERROR,
+                    ErrorCode.TECHNICAL_ERROR.toString()
+            );
         }
     }
 

@@ -9,6 +9,7 @@ import com.nutrition.API_nutrition.exception.ErrorCode;
 import com.nutrition.API_nutrition.model.dto.RegisterRequestDto;
 import com.nutrition.API_nutrition.model.dto.TokenResponseDto;
 import com.nutrition.API_nutrition.util.HttpClientConfig;
+import jakarta.ws.rs.ForbiddenException;
 import jakarta.ws.rs.NotFoundException;
 import jakarta.ws.rs.ProcessingException;
 import jakarta.ws.rs.WebApplicationException;
@@ -413,6 +414,77 @@ public class KeycloakService {
     }
 
     /**
+     * Déconnecte un utilisateur de Keycloak en utilisant son identifiant.
+     *
+     * <p>Cette méthode tente de fermer la session de l'utilisateur spécifié par son identifiant
+     * Keycloak. Si la déconnexion est réussie, la méthode retourne {@code true}.
+     * Si une erreur se produit pendant la déconnexion, elle retourne {@code false}.
+     *
+     * <p>Les erreurs possibles incluent :
+     * <ul>
+     *     <li><strong>Exception</strong> : Toute erreur imprévue durant la déconnexion de l'utilisateur est capturée et journalisée.</li>
+     * </ul>
+     *
+     * @param userId l'identifiant Keycloak de l'utilisateur à déconnecter.
+     * @return {@code true} si la déconnexion a été effectuée avec succès, {@code false} en cas d'erreur.
+     */
+
+    public boolean logout(String userId) {
+
+        try {
+            getKc().realm(getRealm())
+                    .users()
+                    .get(userId)
+                    .logout();
+
+            log.info("Login successfully closed {}", userId);
+            return true;
+
+        } catch (ForbiddenException e) {
+            // Cas spécifique
+            throw new ApiException("Accès interdit",
+                    HttpStatus.FORBIDDEN,
+                    "KEYCLOAK_FORBIDDEN");
+
+        } catch (WebApplicationException ex) {
+            // Cas généraux
+
+            Response body = ex.getResponse();
+            int status = body.getStatus();
+
+            log.error("Logout failed. Status: {}, Entity: {}", status, body.readEntity(String.class));
+
+            switch (status) {
+                case 400:
+                    throw new ApiException("Requête mal formée : " + body,
+                            HttpStatus.BAD_REQUEST,
+                            ErrorCode.KEYCLOAK_BAD_REQUEST.toString());
+                case 401:
+                    throw new ApiException("Non autorisé : " + body,
+                            HttpStatus.UNAUTHORIZED,
+                            ErrorCode.KEYCLOAK_UNAUTHORIZED.toString());
+                case 403:
+                    throw new ApiException("Accès interdit : " + body,
+                            HttpStatus.FORBIDDEN,
+                            ErrorCode.KEYCLOAK_FORBIDDEN.toString());
+                case 404:
+                    throw new ApiException("Utilisateur non trouvé : " + body,
+                            HttpStatus.NOT_FOUND,
+                            ErrorCode.KEYCLOAK_USER_NOT_FOUND.toString());
+                default:
+                    throw new ApiException("Erreur inattendue : " + body,
+                            HttpStatus.valueOf(status),
+                            ErrorCode.KEYCLOAK_UNEXPECTED_ERROR.toString());
+            }
+
+        } catch (Exception e) {
+            throw new ApiException("Technical error during disconnection",
+                    HttpStatus.INTERNAL_SERVER_ERROR,
+                    ErrorCode.TECHNICAL_ERROR.toString());
+        }
+    }
+
+    /**
      * Rafraîchit un token d'accès Keycloak à l'aide du refresh token.
      *
      * <p>Cette méthode envoie une requête de type POST au serveur Keycloak pour obtenir un nouveau token d'accès
@@ -701,39 +773,6 @@ public class KeycloakService {
         }
     }
 
-    /**
-     * Déconnecte un utilisateur de Keycloak en utilisant son identifiant.
-     *
-     * <p>Cette méthode tente de fermer la session de l'utilisateur spécifié par son identifiant
-     * Keycloak. Si la déconnexion est réussie, la méthode retourne {@code true}.
-     * Si une erreur se produit pendant la déconnexion, elle retourne {@code false}.
-     *
-     * <p>Les erreurs possibles incluent :
-     * <ul>
-     *     <li><strong>Exception</strong> : Toute erreur imprévue durant la déconnexion de l'utilisateur est capturée et journalisée.</li>
-     * </ul>
-     *
-     * @param userId l'identifiant Keycloak de l'utilisateur à déconnecter.
-     * @return {@code true} si la déconnexion a été effectuée avec succès, {@code false} en cas d'erreur.
-     */
-
-    public boolean logout(String userId) {
-
-        try {
-            getKc().realm(getRealm())
-                    .users()
-                    .get(userId)
-                    .logout();
-
-            log.info("Login successfully closed {}", userId);
-            return true;
-
-        } catch (Exception e) {
-
-            log.error("Error closing connection {}", userId);
-            return false;
-        }
-    }
 
     /**
      * Réinitialise le mot de passe d'un utilisateur dans Keycloak.

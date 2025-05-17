@@ -11,7 +11,9 @@ public enum ErrorCode {
     KEYCLOAK_BAD_REQUEST,
     KEYCLOAK_UNAUTHORIZED,
     KEYCLOAK_FORBIDDEN,
+    KEYCLOAK_USER_NOT_FOUND,
     KEYCLOAK_UNEXPECTED_ERROR,
+    AUTHENTICATED_BAD_REQUEST,
     NETWORK_ERROR, // erreur réseau
     DB_ERROR, // Erreur en base de donnée
     TECHNICAL_ERROR, // Exception générale

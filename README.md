@@ -76,11 +76,11 @@ Security is managed through the `SecurityConfig` class, with the following featu
 
 ### Authentification
 
-| Endpoint             | Méthode | Description            | Rôle Requis | Codes Réponse |
-|----------------------|---------|------------------------|-------------|---------------|
-| /api/v1/auth/login   | POST    | Connexion (JWT)        | PUBLIC      | 200, 401      |
-| /api/v1/auth/logout  | POST    | Déconnexion            | ROLE_USER   | 200           |
-| /api/v1/auth/refresh | POST    | Rafraîchissement token | ROLE_USER   | 200, 401      |
+| Endpoint             | Méthode | Description            | Rôle Requis | Codes Réponse      |
+|----------------------|---------|------------------------|-------------|--------------------|
+| /api/v1/auth/login   | POST    | Connexion (JWT)        | PUBLIC      | 200, 400, 401, 403 |
+| /api/v1/auth/logout  | POST    | Déconnexion            | ROLE_USER   | 200                |
+| /api/v1/auth/refresh | POST    | Rafraîchissement token | ROLE_USER   | 200, 401           |
 
 ### Administration
 

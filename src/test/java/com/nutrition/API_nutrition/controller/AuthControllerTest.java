@@ -5,6 +5,7 @@ import com.nutrition.API_nutrition.exception.ApiException;
 import com.nutrition.API_nutrition.exception.ErrorCode;
 import com.nutrition.API_nutrition.model.dto.KeycloakLoginRequestDto;
 import com.nutrition.API_nutrition.model.dto.TokenResponseDto;
+import com.nutrition.API_nutrition.security.AccessKeycloak;
 import com.nutrition.API_nutrition.service.KeycloakService;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -47,9 +48,12 @@ class AuthControllerTest {
     @MockitoBean
     private KeycloakService keycloakService;
 
+    @MockitoBean
+    private AccessKeycloak accessKeycloak;
+
     @Test
-    @DisplayName("Devrais authentifier l'utilisateur")
-    void shouldBeAuthenticated_login() throws Exception {
+    @DisplayName("login: Devrais authentifier l'utilisateur")
+    void login_shouldBeAuthenticated() throws Exception {
 
         KeycloakLoginRequestDto dtoLogin = new KeycloakLoginRequestDto(
                 "username",
@@ -76,8 +80,8 @@ class AuthControllerTest {
     }
 
     @Test
-    @DisplayName("Ne devrais pas pourvoir être authentifier: BAD_REQUEST")
-    void ShouldBeNotAuthenticatedBecauseApiException400_login() throws Exception {
+    @DisplayName("login: Ne devrais pas pourvoir être authentifier: BAD_REQUEST")
+    void login_ShouldBeNotAuthenticatedBecauseApiException400() throws Exception {
         KeycloakLoginRequestDto dtoLogin = new KeycloakLoginRequestDto(
                 "username",
                 "password");
@@ -105,8 +109,8 @@ class AuthControllerTest {
     }
 
     @Test
-    @DisplayName("Ne devrais pas pourvoir être authentifier: UNAUTHORIZED")
-    void ShouldBeNotAuthenticatedBecauseApiException401_login() throws Exception {
+    @DisplayName("login: Ne devrais pas pourvoir être authentifier: UNAUTHORIZED")
+    void login_ShouldBeNotAuthenticatedBecauseApiException401() throws Exception {
         KeycloakLoginRequestDto dtoLogin = new KeycloakLoginRequestDto(
                 "username",
                 "password");
@@ -134,8 +138,8 @@ class AuthControllerTest {
     }
 
     @Test
-    @DisplayName("Ne devrais pas pourvoir être authentifier: FORBIDDEN")
-    void ShouldBeNotAuthenticatedBecauseApiException403_login() throws Exception {
+    @DisplayName("login: Ne devrais pas pourvoir être authentifier: FORBIDDEN")
+    void login_ShouldBeNotAuthenticatedBecauseApiException403() throws Exception {
         KeycloakLoginRequestDto dtoLogin = new KeycloakLoginRequestDto(
                 "username",
                 "password");
@@ -163,8 +167,8 @@ class AuthControllerTest {
     }
 
     @Test
-    @DisplayName("Ne devrais pas pourvoir être authentifier: INTERNAL_SERVER_ERROR")
-    void ShouldBeNotAuthenticatedBecauseApiException500_login() throws Exception {
+    @DisplayName("login: Ne devrais pas pourvoir être authentifier: INTERNAL_SERVER_ERROR")
+    void login_ShouldBeNotAuthenticatedBecauseApiException500() throws Exception {
         KeycloakLoginRequestDto dtoLogin = new KeycloakLoginRequestDto(
                 "username",
                 "password");
@@ -188,6 +192,45 @@ class AuthControllerTest {
                 .andExpect(status().is5xxServerError())
                 .andExpect(jsonPath("$.status").value("INTERNAL_SERVER_ERROR"))
                 .andExpect(jsonPath("$.errorCode").value("KEYCLOAK_UNEXPECTED_ERROR"));
+    }
+
+    @Test
+    @DisplayName("logout: devrais déconnecter l'utilisateur")
+    void logout_shouldBeLogoutUser() throws Exception {
+
+        // Arrange
+        when(this.accessKeycloak.isTokenValid()).thenReturn(true);
+        when(this.accessKeycloak.getUserIdFromToken()).thenReturn("fake-user-Id-token");
+        when(this.keycloakService.logout(any())).thenReturn(true);
+
+        // Act & Assert
+        String uri = AuthController.BASE_AUTH + AuthController.LOGOUT;
+        mockMvc.perform(post(uri)
+                        .contentType(MediaType.APPLICATION_JSON))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.status").value("OK"))
+                .andExpect(jsonPath("$.data").value(true));
+    }
+
+    @Test
+    @DisplayName("logout: devrais retourné un message d'erreur: BAD_REQUEST")
+    void logout_shouldBeNotLogoutUserApiException400() throws Exception {
+
+        // Arrange
+        when(this.accessKeycloak.isTokenValid()).thenReturn(true);
+        when(this.accessKeycloak.getUserIdFromToken()).thenReturn("fake-user-Id-token");
+        when(this.keycloakService.logout(any())).thenThrow(new ApiException(
+                "Error message",
+                HttpStatus.BAD_REQUEST,
+                ErrorCode.KEYCLOAK_BAD_REQUEST.toString()));
+
+        // Act & Assert
+        String uri = AuthController.BASE_AUTH + AuthController.LOGOUT;
+        mockMvc.perform(post(uri)
+                        .contentType(MediaType.APPLICATION_JSON))
+                .andExpect(status().is4xxClientError())
+                .andExpect(jsonPath("$.status").value("BAD_REQUEST"))
+                .andExpect(jsonPath("$.errorCode").value("KEYCLOAK_BAD_REQUEST"));
     }
 
 }

@@ -20,6 +20,7 @@ you need a running Keycloak
     * [How it works](#how-it-works)
     * [Benefits](#benefits)
     * [Common Usage](#common-usage)
+* [Explanation of Test Annotations](#-explanation-of-test-annotations)
 
 ## Run projet
 
@@ -76,11 +77,11 @@ Security is managed through the `SecurityConfig` class, with the following featu
 
 ### Authentification
 
-| Endpoint             | Méthode | Description            | Rôle Requis | Codes Réponse      |
-|----------------------|---------|------------------------|-------------|--------------------|
-| /api/v1/auth/login   | POST    | Connexion (JWT)        | PUBLIC      | 200, 400, 401, 403 |
-| /api/v1/auth/logout  | POST    | Déconnexion            | ROLE_USER   | 200                |
-| /api/v1/auth/refresh | POST    | Rafraîchissement token | ROLE_USER   | 200, 401           |
+| Endpoint             | Méthode | Description            | Rôle Requis | Codes Réponse                |
+|----------------------|---------|------------------------|-------------|------------------------------|
+| /api/v1/auth/login   | POST    | Connexion (JWT)        | PUBLIC      | 200, 400, 401, 403, 404, 500 |
+| /api/v1/auth/logout  | POST    | Déconnexion            | ROLE_USER   | 200, 400, 401, 403, 404, 500 |
+| /api/v1/auth/refresh | POST    | Rafraîchissement token | ROLE_USER   | 200, 400, 401, 403, 404, 500 |
 
 ### Administration
 
@@ -146,3 +147,33 @@ mvnw.cmd clean install
 
 In a Spring development environment, you'll still need to install a JDK, but not necessarily Maven thanks to the
 wrapper.
+
+## 🧪 Explanation of Test Annotations
+
+Below are the main annotations used when testing Spring Boot controllers with `MockMvc`:
+
+### `@WebMvcTest(UsersController.class)`
+
+- Used to test only the **web layer (Controller)**.
+- It does **not** load service (`@Service`) or repository (`@Repository`) beans.
+- Ideal for testing HTTP endpoints in isolation without starting the full application context.
+
+### `@ActiveProfiles("test")`
+
+- Activates a specific Spring profile (`test` in this case).
+- Useful for loading a dedicated configuration (`application-test.yml`) or customizing behavior during tests.
+
+### `@AutoConfigureMockMvc(addFilters = false)`
+
+- Automatically configures a `MockMvc` bean to simulate HTTP requests.
+- The `addFilters = false` option disables **security filters** (e.g., Spring Security filters), making it easier to
+  test controllers without authentication.
+
+### `@TestPropertySource(properties = {"spring.sql.init.mode=never"})`
+
+- Overrides specific configuration properties during test execution.
+- In this case, disables automatic SQL database initialization by Spring Boot during tests.
+
+---
+
+These annotations, when combined, allow you to write fast, isolated, and database-independent controller tests.

@@ -118,4 +118,15 @@ public class AccessKeycloak {
                 ErrorCode.AUTHENTICATED_BAD_REQUEST.toString());
     }
 
+    public String extractToken(String token) throws ApiException {
+        return Optional.ofNullable(token)
+                .filter(header -> header.startsWith("Bearer "))
+                .map(header -> header.replace("Bearer ", ""))
+                .orElseThrow(() -> new ApiException("Invalid Authorization header",
+                        HttpStatus.BAD_REQUEST,
+                        ErrorCode.AUTHENTICATED_BAD_REQUEST.toString()));
+
+
+    }
+
 }

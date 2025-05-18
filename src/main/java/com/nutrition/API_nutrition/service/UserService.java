@@ -251,7 +251,7 @@ public class UserService {
             if (stillExists) {
                 throw new ApiException(
                         "User was not deleted from database",
-                        HttpStatus.BAD_REQUEST,
+                        HttpStatus.CONFLICT,
                         ErrorCode.DB_ERROR.toString()
                 );
             }
@@ -286,7 +286,7 @@ public class UserService {
             log.error("Unexpected error when deleting user: {}", e.getMessage(), e);
             throw new ApiException(
                     "Failed to delete user",
-                    HttpStatus.BAD_REQUEST,
+                    HttpStatus.INTERNAL_SERVER_ERROR,
                     ErrorCode.TECHNICAL_ERROR.toString()
             );
         }

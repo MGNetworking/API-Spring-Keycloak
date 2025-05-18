@@ -20,7 +20,7 @@ import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.test.web.servlet.MockMvc;
 
 import static org.mockito.ArgumentMatchers.any;
-import static org.mockito.Mockito.when;
+import static org.mockito.Mockito.*;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
@@ -201,7 +201,7 @@ class AuthControllerTest {
         // Arrange
         when(this.accessKeycloak.isTokenValid()).thenReturn(true);
         when(this.accessKeycloak.getUserIdFromToken()).thenReturn("fake-user-Id-token");
-        when(this.keycloakService.logout(any())).thenReturn(true);
+        doNothing().when(this.keycloakService).logout(any());
 
         // Act & Assert
         String uri = AuthController.BASE_AUTH + AuthController.LOGOUT;
@@ -209,7 +209,7 @@ class AuthControllerTest {
                         .contentType(MediaType.APPLICATION_JSON))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.status").value("OK"))
-                .andExpect(jsonPath("$.data").value(true));
+                .andExpect(jsonPath("$.data").value("Logout Successfully"));
     }
 
     @Test
@@ -219,10 +219,10 @@ class AuthControllerTest {
         // Arrange
         when(this.accessKeycloak.isTokenValid()).thenReturn(true);
         when(this.accessKeycloak.getUserIdFromToken()).thenReturn("fake-user-Id-token");
-        when(this.keycloakService.logout(any())).thenThrow(new ApiException(
-                "Error message",
+
+        doThrow(new ApiException("Error message",
                 HttpStatus.BAD_REQUEST,
-                ErrorCode.KEYCLOAK_BAD_REQUEST.toString()));
+                ErrorCode.KEYCLOAK_BAD_REQUEST.toString())).when(this.keycloakService).logout(anyString());
 
         // Act & Assert
         String uri = AuthController.BASE_AUTH + AuthController.LOGOUT;

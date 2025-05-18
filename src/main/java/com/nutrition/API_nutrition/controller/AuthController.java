@@ -3,6 +3,7 @@ package com.nutrition.API_nutrition.controller;
 import com.nutrition.API_nutrition.exception.ApiException;
 import com.nutrition.API_nutrition.model.dto.ApiResponseData;
 import com.nutrition.API_nutrition.model.dto.KeycloakLoginRequestDto;
+import com.nutrition.API_nutrition.model.dto.TokenResponseDto;
 import com.nutrition.API_nutrition.model.response.GenericApiErrorResponse;
 import com.nutrition.API_nutrition.model.response.GenericApiResponse;
 import com.nutrition.API_nutrition.security.AccessKeycloak;
@@ -19,10 +20,7 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
-import org.springframework.web.bind.annotation.PostMapping;
-import org.springframework.web.bind.annotation.RequestBody;
-import org.springframework.web.bind.annotation.RequestMapping;
-import org.springframework.web.bind.annotation.RestController;
+import org.springframework.web.bind.annotation.*;
 
 @Slf4j
 @RestController
@@ -100,34 +98,58 @@ public class AuthController {
     })
     @PostMapping(value = LOGOUT)
     @PreAuthorize("@accessKeycloak.isTokenValid()")
-    public ResponseEntity<GenericApiResponse<Boolean>> logout() {
+    public ResponseEntity<GenericApiResponse<String>> logout() {
 
-        // Récupérer l'id user du token
-        String idUser = this.accessKeycloak.getUserIdFromToken();
+        this.keycloakService.logout(this.accessKeycloak.getUserIdFromToken());
 
         return ResponseEntity
                 .status(HttpStatus.OK)
-                .body(new GenericApiResponse<Boolean>(
+                .body(new GenericApiResponse<String>(
                         HttpStatus.OK,
                         HttpStatus.OK.value(),
                         "User not exist, Update is impossible",
                         BASE_AUTH + LOGIN,
-                        this.keycloakService.logout(idUser))
+                        "Logout Successfully")
                 );
 
     }
 
-/*    @Tag(name = "refresh")
+    @Tag(name = "refresh")
     @Operation(
             summary = "Rafraîchissement token",
             description = "Permet le rafraichissement du token jwt et lui retourne un token accès"
     )
     @ApiResponses(value = {
-            @ApiResponse(responseCode = "201", description = ""),
-            @ApiResponse(responseCode = "404", description = ""),
+            @ApiResponse(responseCode = "201", description = "Rafraîchissement du token réussi",
+                    content = @Content(schema = @Schema(implementation = GenericApiErrorResponse.class))),
+            @ApiResponse(responseCode = "400", description = "Requête mal formée (ex: token invalide)",
+                    content = @Content(schema = @Schema(implementation = GenericApiErrorResponse.class))),
+            @ApiResponse(responseCode = "401", description = "Non autorisé (token expiré ou manquant)",
+                    content = @Content(schema = @Schema(implementation = GenericApiErrorResponse.class))),
+            @ApiResponse(responseCode = "403", description = "Accès interdit",
+                    content = @Content(schema = @Schema(implementation = GenericApiErrorResponse.class))),
+            @ApiResponse(responseCode = "404", description = "Utilisateur non trouvé",
+                    content = @Content(schema = @Schema(implementation = GenericApiErrorResponse.class))),
+            @ApiResponse(responseCode = "500", description = "Erreur technique inattendue",
+                    content = @Content(schema = @Schema(implementation = GenericApiErrorResponse.class)))
     })
+    @PreAuthorize("@accessKeycloak.isTokenValid()")
     @PostMapping(value = REFRESH)
-    public ResponseEntity<GenericApiResponse<ApiResponseData>> refresh() {
+    public ResponseEntity<GenericApiResponse<TokenResponseDto>> refresh(
+            @RequestHeader("Authorization") String authHeader
+    ) {
 
-    }*/
+        String token = this.accessKeycloak.extractToken(authHeader);
+
+        return ResponseEntity
+                .status(HttpStatus.OK)
+                .body(new GenericApiResponse<TokenResponseDto>(
+                        HttpStatus.OK,
+                        HttpStatus.OK.value(),
+                        "User not exist, Update is impossible",
+                        BASE_AUTH + LOGIN,
+                        this.keycloakService.refreshToken(token))
+                );
+
+    }
 }

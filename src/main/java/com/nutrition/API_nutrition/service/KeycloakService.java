@@ -404,7 +404,11 @@ public class KeycloakService {
                     node.get("refresh_expires_in").asLong()
             );
 
+        } catch (ApiException e) {
+            // Si c’est une ApiException lancée volontairement, on la relance telle quelle
+            throw e;
         } catch (Exception e) {
+            log.error("Technical error during authentication request", e);
             throw new ApiException(
                     "A technical error has occurred during the authentication request",
                     HttpStatus.INTERNAL_SERVER_ERROR,
@@ -426,10 +430,8 @@ public class KeycloakService {
      * </ul>
      *
      * @param userId l'identifiant Keycloak de l'utilisateur à déconnecter.
-     * @return {@code true} si la déconnexion a été effectuée avec succès, {@code false} en cas d'erreur.
      */
-
-    public boolean logout(String userId) {
+    public void logout(String userId) {
 
         try {
             getKc().realm(getRealm())
@@ -437,14 +439,14 @@ public class KeycloakService {
                     .get(userId)
                     .logout();
 
-            log.info("Login successfully closed {}", userId);
-            return true;
+            log.info("Logout successfully closed {}", userId);
+
 
         } catch (ForbiddenException e) {
             // Cas spécifique
-            throw new ApiException("Accès interdit",
+            throw new ApiException("Access forbidden",
                     HttpStatus.FORBIDDEN,
-                    "KEYCLOAK_FORBIDDEN");
+                    ErrorCode.KEYCLOAK_FORBIDDEN.toString());
 
         } catch (WebApplicationException ex) {
             // Cas généraux
@@ -514,11 +516,39 @@ public class KeycloakService {
                     "&grant_type=refresh_token" +
                     "&refresh_token=" + URLEncoder.encode(refreshToken, StandardCharsets.UTF_8);
 
+            // create request
             HttpRequest request = this.httpClientConfig.postRequest(tokenUrl, header, body);
+
+            // send to keycloak
             HttpResponse<String> response = httpClient.send(request, HttpResponse.BodyHandlers.ofString());
 
             if (response.statusCode() != 200) {
-                throw new RuntimeException("Token refresh failed: " + response.body());
+                log.error("Refresh token failed Status: {}, Response: {}",
+                        response.statusCode(), response.body());
+
+                String errorMessage = "Refresh token failed. Reason: %s".formatted(response.body());
+                switch (response.statusCode()) {
+                    case 400 -> throw new ApiException(
+                            errorMessage,
+                            HttpStatus.BAD_REQUEST,
+                            ErrorCode.KEYCLOAK_BAD_REQUEST.toString()
+                    );
+                    case 401 -> throw new ApiException(
+                            "Invalid credentials. " + errorMessage,
+                            HttpStatus.UNAUTHORIZED,
+                            ErrorCode.KEYCLOAK_UNAUTHORIZED.toString()
+                    );
+                    case 403 -> throw new ApiException(
+                            "Access forbidden. " + errorMessage,
+                            HttpStatus.FORBIDDEN,
+                            ErrorCode.KEYCLOAK_FORBIDDEN.toString()
+                    );
+                    default -> throw new ApiException(
+                            "Unexpected error during authentication. " + errorMessage,
+                            HttpStatus.INTERNAL_SERVER_ERROR,
+                            ErrorCode.KEYCLOAK_UNEXPECTED_ERROR.toString()
+                    );
+                }
             }
 
             ObjectMapper mapper = new ObjectMapper();
@@ -531,14 +561,18 @@ public class KeycloakService {
                     node.get("refresh_expires_in").asLong()
             );
         } catch (Exception e) {
-            throw new RuntimeException("Token refresh process failed", e);
+            throw new ApiException(
+                    "A technical error has occurred during the token refresh process",
+                    HttpStatus.INTERNAL_SERVER_ERROR,
+                    ErrorCode.TECHNICAL_ERROR.toString()
+            );
         }
     }
 
     /**
      * Valide un token d'accès auprès du serveur d'authentification Keycloak.
      *
-     * <p>Cette méthode envoie une requête HTTP GET à l'endpoint `userinfo` de Keycloak pour vérifier la validité du token d'accès fourni.
+     * <p>Cette méthode envoie une requête HTTP GET à endpoint `userinfo` de Keycloak pour vérifier la validité du token d'accès fourni.
      * Si le serveur répond avec un code de statut HTTP 200, cela signifie que le token est valide.
      *
      * <p>En cas d'erreur (par exemple, si le token est invalide, expiré, ou si un problème réseau survient),

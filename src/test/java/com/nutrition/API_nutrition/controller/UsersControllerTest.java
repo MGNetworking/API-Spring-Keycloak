@@ -6,6 +6,7 @@ import com.nutrition.API_nutrition.model.dto.TokenResponseDto;
 import com.nutrition.API_nutrition.model.dto.UserResponseDto;
 import com.nutrition.API_nutrition.model.entity.Gender;
 import com.nutrition.API_nutrition.model.entity.User;
+import com.nutrition.API_nutrition.security.AccessKeycloak;
 import com.nutrition.API_nutrition.service.KeycloakService;
 import com.nutrition.API_nutrition.service.UserService;
 import org.junit.jupiter.api.BeforeEach;
@@ -50,6 +51,9 @@ class UsersControllerTest {
 
     @MockitoBean
     private KeycloakService keycloakService;
+
+    @MockitoBean
+    private AccessKeycloak accessKeycloak;
 
     RegisterRequestDto requestDto;
 

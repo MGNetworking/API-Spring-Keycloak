@@ -2,9 +2,11 @@ package com.nutrition.API_nutrition.model.response;
 
 import com.fasterxml.jackson.annotation.JsonPropertyOrder;
 import lombok.Data;
+import lombok.EqualsAndHashCode;
 import lombok.NoArgsConstructor;
 import org.springframework.http.HttpStatus;
 
+@EqualsAndHashCode(callSuper = true)
 @JsonPropertyOrder({
         "timestamp",
         "status",

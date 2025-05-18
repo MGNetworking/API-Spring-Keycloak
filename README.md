@@ -68,6 +68,8 @@ Security is managed through the `SecurityConfig` class, with the following featu
 
 ### Gestion Utilisateurs
 
+* class : UsersController
+
 | Endpoint               | Méthode | Description              | Rôle Requis | Codes Réponse                     |
 |------------------------|---------|--------------------------|-------------|-----------------------------------|
 | /api/v1/users/register | POST    | Création d'utilisateur   | PUBLIC      | 201, 400, 401, 403, 409, 500      |
@@ -77,6 +79,8 @@ Security is managed through the `SecurityConfig` class, with the following featu
 
 ### Authentification
 
+* class : AuthController
+
 | Endpoint             | Méthode | Description            | Rôle Requis | Codes Réponse                |
 |----------------------|---------|------------------------|-------------|------------------------------|
 | /api/v1/auth/login   | POST    | Connexion (JWT)        | PUBLIC      | 200, 400, 401, 403, 404, 500 |
@@ -84,6 +88,8 @@ Security is managed through the `SecurityConfig` class, with the following featu
 | /api/v1/auth/refresh | POST    | Rafraîchissement token | ROLE_USER   | 200, 400, 401, 403, 404, 500 |
 
 ### Administration
+
+* class : AdminController
 
 | Endpoint                 | Méthode | Description                    | Rôle Requis | Codes Réponse |
 |--------------------------|---------|--------------------------------|-------------|---------------|

@@ -68,12 +68,12 @@ Security is managed through the `SecurityConfig` class, with the following featu
 
 ### Gestion Utilisateurs
 
-| Endpoint               | Méthode | Description              | Rôle Requis | Codes Réponse |
-|------------------------|---------|--------------------------|-------------|---------------|
-| /api/v1/users/register | POST    | Création d'utilisateur   | PUBLIC      | 201, 400, 409 |
-| /api/v1/users/user     | PUT     | Mise à jour utilisateur  | ROLE_USER   | 200, 400, 404 |
-| /api/v1/users/{id}     | DELETE  | Suppression utilisateur  | ROLE_ADMIN  | 204, 404      |
-| /api/v1/users/{id}     | GET     | Récupération utilisateur | ROLE_USER   | 200, 404      |
+| Endpoint               | Méthode | Description              | Rôle Requis | Codes Réponse                     |
+|------------------------|---------|--------------------------|-------------|-----------------------------------|
+| /api/v1/users/register | POST    | Création d'utilisateur   | PUBLIC      | 201, 400, 401, 403, 409, 500      |
+| /api/v1/users/user     | PUT     | Mise à jour utilisateur  | ROLE_USER   | 200, 400, 401, 403, 404, 500      |
+| /api/v1/users/{id}     | DELETE  | Suppression utilisateur  | ROLE_ADMIN  | 204, 400, 401, 403, 404, 409, 500 |
+| /api/v1/users/{id}     | GET     | Récupération utilisateur | ROLE_USER   | 200, 400, 401, 403, 404, 500      |
 
 ### Authentification
 
@@ -92,17 +92,17 @@ Security is managed through the `SecurityConfig` class, with the following featu
 
 ## Codes de Réponse HTTP
 
-L'API utilise les codes de statut HTTP standards suivants:
+The API uses the following standard HTTP status codes:
 
-| Code | Description                                                                         |
-|------|-------------------------------------------------------------------------------------|
-| 200  | **OK** - La requête a réussi                                                        |
-| 201  | **Created** - Ressource créée avec succès                                           |
-| 204  | **No Content** - Requête traitée avec succès mais aucun contenu à renvoyer          |
-| 400  | **Bad Request** - La requête contient des erreurs ou des données invalides          |
-| 401  | **Unauthorized** - Authentification nécessaire ou échec de l'authentification       |
-| 404  | **Not Found** - La ressource demandée n'existe pas                                  |
-| 409  | **Conflict** - La requête ne peut être traitée en raison d'un conflit (ex: doublon) |
+| Code | Description                                                                      |
+|------|----------------------------------------------------------------------------------|
+| 200  | **OK** - The request was successful                                              |
+| 201  | **Created** - Successfully created resource                                      |
+| 204  | **No Content** - Request processed successfully but no content to return         |
+| 400  | **Bad Request** - The request contains errors or invalid data                    |
+| 401  | **Unauthorized** - Authentication required or authentication failed              |
+| 404  | **Not Found** - The requested resource does not exist                            |
+| 409  | **Conflict** - The request cannot be processed due to a conflict (ex: duplicate) |
 
 ## Maven Wrapper: How It Works
 
@@ -148,7 +148,7 @@ mvnw.cmd clean install
 In a Spring development environment, you'll still need to install a JDK, but not necessarily Maven thanks to the
 wrapper.
 
-## 🧪 Explanation of Test Annotations
+## Explanation of Test Annotations
 
 Below are the main annotations used when testing Spring Boot controllers with `MockMvc`:
 

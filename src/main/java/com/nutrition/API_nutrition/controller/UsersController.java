@@ -43,6 +43,96 @@ public class UsersController {
     private final UserService userService;
     private final AccessKeycloak accessKeycloak;
 
+    /**
+     * Crée un nouvel utilisateur dans le système et retourne son profil accompagné d’un token JWT.
+     *
+     * <p>Cette méthode suit le processus suivant :
+     * <ol>
+     *     <li>Vérifie si l'utilisateur existe déjà dans Keycloak via {@code keycloakService.checkUserExist()}.</li>
+     *     <li>Si l'utilisateur existe, renvoie une réponse HTTP 409 (Conflict).</li>
+     *     <li>Sinon, crée l'utilisateur via {@code userService.createUser()}.</li>
+     *     <li>Connecte automatiquement l'utilisateur via {@code keycloakService.login()} pour générer un token JWT.</li>
+     *     <li>Renvoie une réponse HTTP 201 (Created) avec les informations de l'utilisateur et un header {@code Authorization} contenant le token.</li>
+     * </ol>
+     *
+     * @param userDto Les informations du nouvel utilisateur à créer. L'objet est validé grâce à {@code @Valid}.
+     * @return Une {@link ResponseEntity} contenant un {@link GenericApiResponse} avec :
+     * <ul>
+     *     <li>HTTP 201 si la création est réussie (avec token JWT).</li>
+     *     <li>HTTP 400 en cas de requête invalide (gérée par la validation Spring).</li>
+     *     <li>HTTP 401 si les informations d'identification invalides</li>
+     *     <li>HTTP 403 si l'accès interdit.</li>
+     *     <li>HTTP 409 si l'utilisateur existe déjà.</li>
+     *     <li>HTTP 500 si une erreur interne du serveur </li>
+     * </ul>
+     * @see RegisterRequestDto
+     * @see UserResponseDto
+     * @see TokenResponseDto
+     * @see GenericApiResponse
+     * @see ApiResponseData
+     * @see KeycloakService#checkUserExist(RegisterRequestDto)
+     * @see KeycloakService#login(String, String)
+     * @see UserService#createUser(RegisterRequestDto)
+     */
+    @Tag(name = "register")
+    @Operation(
+            summary = "Créer un nouvel utilisateur",
+            description = "Crée un utilisateur dans le système et retourne son profil avec un token d'authentification."
+    )
+    @ApiResponses(value = {
+            @ApiResponse(responseCode = "201",
+                    description = "Création réussie : l'utilisateur a était créé avec succès",
+                    content = @Content(schema = @Schema(implementation = GenericApiErrorResponse.class))),
+            @ApiResponse(responseCode = "400",
+                    description = "Requête invalide : paramètres manquants ou malformés.",
+                    content = @Content(schema = @Schema(implementation = GenericApiErrorResponse.class))),
+            @ApiResponse(responseCode = "401",
+                    description = "Informations d'identification invalides: l'utilisateur n'est pas authentifié. ",
+                    content = @Content(schema = @Schema(implementation = GenericApiErrorResponse.class))),
+            @ApiResponse(responseCode = "403",
+                    description = "Accès interdit : l'utilisateur n'a pas les droits nécessaires.",
+                    content = @Content(schema = @Schema(implementation = GenericApiErrorResponse.class))),
+            @ApiResponse(responseCode = "409",
+                    description = "Conflict : L'utilisateur existe déjà",
+                    content = @Content(schema = @Schema(implementation = GenericApiErrorResponse.class))),
+            @ApiResponse(responseCode = "500",
+                    description = "Erreur interne du serveur : une exception technique est survenue.",
+                    content = @Content(schema = @Schema(implementation = GenericApiErrorResponse.class)))
+    })
+    @PostMapping(value = REGISTER)
+    public ResponseEntity<GenericApiResponse<ApiResponseData>> postUser(@Valid @RequestBody RegisterRequestDto userDto) {
+
+        if (this.keycloakService.checkUserExist(userDto)) {
+            return ResponseEntity
+                    .status(HttpStatus.CONFLICT)
+                    .body(new GenericApiResponse<ApiResponseData>(
+                            HttpStatus.CONFLICT,
+                            HttpStatus.CONFLICT.value(),
+                            "The user is already exists",
+                            BASE_USERS + REGISTER,
+                            userDto
+                    ));
+        }
+
+        // Créer un user
+        UserResponseDto userResponseDto = this.userService.createUser(userDto);
+        TokenResponseDto token = keycloakService.login(
+                userDto.getUserName(),
+                userDto.getPassword());
+
+        return ResponseEntity
+                .status(HttpStatus.CREATED)
+                .body(new GenericApiResponse<ApiResponseData>(
+                        HttpStatus.CREATED,
+                        HttpStatus.CREATED.value(),
+                        "The user was Successfully create",
+                        BASE_USERS + REGISTER,
+                        new ResponsUserTokenDto(
+                                userResponseDto,
+                                token)
+                ));
+    }
+
 
     /**
      * Met à jour les informations d'un utilisateur existant dans le système d'information.
@@ -155,95 +245,6 @@ public class UsersController {
 
     }
 
-    /**
-     * Crée un nouvel utilisateur dans le système et retourne son profil accompagné d’un token JWT.
-     *
-     * <p>Cette méthode suit le processus suivant :
-     * <ol>
-     *     <li>Vérifie si l'utilisateur existe déjà dans Keycloak via {@code keycloakService.checkUserExist()}.</li>
-     *     <li>Si l'utilisateur existe, renvoie une réponse HTTP 409 (Conflict).</li>
-     *     <li>Sinon, crée l'utilisateur via {@code userService.createUser()}.</li>
-     *     <li>Connecte automatiquement l'utilisateur via {@code keycloakService.login()} pour générer un token JWT.</li>
-     *     <li>Renvoie une réponse HTTP 201 (Created) avec les informations de l'utilisateur et un header {@code Authorization} contenant le token.</li>
-     * </ol>
-     *
-     * @param userDto Les informations du nouvel utilisateur à créer. L'objet est validé grâce à {@code @Valid}.
-     * @return Une {@link ResponseEntity} contenant un {@link GenericApiResponse} avec :
-     * <ul>
-     *     <li>HTTP 201 si la création est réussie (avec token JWT).</li>
-     *     <li>HTTP 400 en cas de requête invalide (gérée par la validation Spring).</li>
-     *     <li>HTTP 401 si les informations d'identification invalides</li>
-     *     <li>HTTP 403 si l'accès interdit.</li>
-     *     <li>HTTP 409 si l'utilisateur existe déjà.</li>
-     *     <li>HTTP 500 si une erreur interne du serveur </li>
-     * </ul>
-     * @see RegisterRequestDto
-     * @see UserResponseDto
-     * @see TokenResponseDto
-     * @see GenericApiResponse
-     * @see ApiResponseData
-     * @see KeycloakService#checkUserExist(RegisterRequestDto)
-     * @see KeycloakService#login(String, String)
-     * @see UserService#createUser(RegisterRequestDto)
-     */
-    @Tag(name = "register")
-    @Operation(
-            summary = "Créer un nouvel utilisateur",
-            description = "Crée un utilisateur dans le système et retourne son profil avec un token d'authentification."
-    )
-    @ApiResponses(value = {
-            @ApiResponse(responseCode = "201",
-                    description = "Création réussie : l'utilisateur a était créé avec succès",
-                    content = @Content(schema = @Schema(implementation = GenericApiErrorResponse.class))),
-            @ApiResponse(responseCode = "400",
-                    description = "Requête invalide : paramètres manquants ou malformés.",
-                    content = @Content(schema = @Schema(implementation = GenericApiErrorResponse.class))),
-            @ApiResponse(responseCode = "401",
-                    description = "Informations d'identification invalides: l'utilisateur n'est pas authentifié. ",
-                    content = @Content(schema = @Schema(implementation = GenericApiErrorResponse.class))),
-            @ApiResponse(responseCode = "403",
-                    description = "Accès interdit : l'utilisateur n'a pas les droits nécessaires.",
-                    content = @Content(schema = @Schema(implementation = GenericApiErrorResponse.class))),
-            @ApiResponse(responseCode = "409",
-                    description = "Conflict : L'utilisateur existe déjà",
-                    content = @Content(schema = @Schema(implementation = GenericApiErrorResponse.class))),
-            @ApiResponse(responseCode = "500",
-                    description = "Erreur interne du serveur : une exception technique est survenue.",
-                    content = @Content(schema = @Schema(implementation = GenericApiErrorResponse.class)))
-    })
-    @PostMapping(value = REGISTER)
-    public ResponseEntity<GenericApiResponse<ApiResponseData>> postUser(@Valid @RequestBody RegisterRequestDto userDto) {
-
-        if (this.keycloakService.checkUserExist(userDto)) {
-            return ResponseEntity
-                    .status(HttpStatus.CONFLICT)
-                    .body(new GenericApiResponse<ApiResponseData>(
-                            HttpStatus.CONFLICT,
-                            HttpStatus.CONFLICT.value(),
-                            "The user is already exists",
-                            BASE_USERS + REGISTER,
-                            userDto
-                    ));
-        }
-
-        // Créer un user
-        UserResponseDto userResponseDto = this.userService.createUser(userDto);
-        TokenResponseDto token = keycloakService.login(
-                userDto.getUserName(),
-                userDto.getPassword());
-
-        return ResponseEntity
-                .status(HttpStatus.CREATED)
-                .body(new GenericApiResponse<ApiResponseData>(
-                        HttpStatus.CREATED,
-                        HttpStatus.CREATED.value(),
-                        "The user was Successfully create",
-                        BASE_USERS + REGISTER,
-                        new ResponsUserTokenDto(
-                                userResponseDto,
-                                token)
-                ));
-    }
 
     /**
      * Supprime un utilisateur existant à partir de son identifiant Keycloak.

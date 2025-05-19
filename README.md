@@ -77,6 +77,11 @@ Security is managed through the `SecurityConfig` class, with the following featu
 | /api/v1/users/{id}     | DELETE  | Suppression utilisateur  | ROLE_ADMIN  | 204, 400, 401, 403, 404, 409, 500 |
 | /api/v1/users/{id}     | GET     | Récupération utilisateur | ROLE_USER   | 200, 400, 401, 403, 404, 500      |
 
+📝 Description:
+This controller manages user accounts. It allows anyone to register a new user, authenticated users to update or
+retrieve their profile, and administrators to delete users.
+Each action is protected by appropriate role-based access control (`ROLE_USER`, `ROLE_ADMIN`).
+
 ### Authentification
 
 * class : AuthController
@@ -87,14 +92,35 @@ Security is managed through the `SecurityConfig` class, with the following featu
 | /api/v1/auth/logout  | POST    | Déconnexion            | ROLE_USER   | 200, 400, 401, 403, 404, 500 |
 | /api/v1/auth/refresh | POST    | Rafraîchissement token | ROLE_USER   | 200, 400, 401, 403, 404, 500 |
 
+📝 Description:
+
+This controller handles authentication using Keycloak.
+
+* `/login` issues a JWT token when the user provides valid credentials.
+* `/logout` invalidates the user session in Keycloak.
+* `/refresh` provides a new access token using a valid refresh token.
+
 ### Administration
 
 * class : AdminController
 
-| Endpoint                 | Méthode | Description                    | Rôle Requis | Codes Réponse |
-|--------------------------|---------|--------------------------------|-------------|---------------|
-| /api/v1/admin/users      | GET     | Liste tous les utilisateurs    | ROLE_ADMIN  | 200           |
-| /api/v1/admin/users/{id} | PUT     | Modification admin utilisateur | ROLE_ADMIN  | 200, 404      |
+| Endpoint                           | Méthode | Description                                    | Rôle Requis | Codes Réponse                     |
+|------------------------------------|---------|------------------------------------------------|-------------|-----------------------------------|
+| /api/v1/admin/users                | GET     | Liste tous les utilisateurs                    | ROLE_ADMIN  | 200, 401, 403, 500                |
+| /api/v1/admin/users/{id}           | PUT     | Modification admin utilisateur                 | ROLE_ADMIN  | 200, 400, 401, 403, 404, 500      |
+| /api/v1/admin/users/roles          | PUT     | Modifier les rôles d’un utilisateur            | ROLE_ADMIN  | 200, 400, 401, 403, 404, 409, 500 |
+| /api/v1/admin/users/enable         | PUT     | Activer ou désactiver un utilisateur           | ROLE_ADMIN  | 200, 400, 401, 403, 404, 409, 500 |
+| /api/v1/admin/users/reset-password | PUT     | Réinitialiser le mot de passe d’un utilisateur | ROLE_ADMIN  | 200, 400, 401, 403, 404, 409, 500 |
+
+📝 Description:
+
+This controller provides administrative tools for managing Keycloak users.
+
+* `/users` lists all users registered in the Keycloak realm.
+* `/users/{id}` allows editing user profile details (name, email, etc.).
+* `/users/roles` updates a user's role assignments (e.g., adding/removing `ROLE_USER`, `ROLE_ADMIN`).
+* `/users/enable` enables or disables a user's Keycloak account.
+* `/reset-password` forces a password reset with a new password, optionally marking it as temporary.
 
 ## Codes de Réponse HTTP
 
@@ -109,6 +135,7 @@ The API uses the following standard HTTP status codes:
 | 401  | **Unauthorized** - Authentication required or authentication failed              |
 | 404  | **Not Found** - The requested resource does not exist                            |
 | 409  | **Conflict** - The request cannot be processed due to a conflict (ex: duplicate) |
+| 500  | **Internal Server Error** - Unexpected server-side error                         |
 
 ## Maven Wrapper: How It Works
 

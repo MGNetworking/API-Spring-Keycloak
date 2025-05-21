@@ -221,8 +221,7 @@ public class UsersController {
         UserResponseDto userResponseDto = this.userService.updateUser(userDto);
 
         // met à jour le token
-        String accessToken = authHeader.replace("Bearer ", "");
-        TokenResponseDto tokenDto = this.keycloakService.refreshToken(accessToken);
+        TokenResponseDto tokenDto = this.keycloakService.refreshToken(token);
 
         if (userResponseDto.getKeycloakId() != null) {
             return ResponseEntity

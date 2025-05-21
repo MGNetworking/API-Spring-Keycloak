@@ -1,7 +1,6 @@
 package com.nutrition.API_nutrition.controller;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
-import com.nutrition.API_nutrition.model.dto.KeycloakUserData;
 import com.nutrition.API_nutrition.model.dto.RegisterRequestDto;
 import com.nutrition.API_nutrition.model.dto.TokenResponseDto;
 import com.nutrition.API_nutrition.model.dto.UserResponseDto;
@@ -110,25 +109,27 @@ class UsersControllerTest {
         UserResponseDto updatedUser = new UserResponseDto()
                 .mappingToUser(this.requestDto.UserMapping());
 
-        String authHeaderMock = "fake-token-for-testing";
+        String authHeaderMock = "Bearer fake-token-for-testing";
+        String tokenMock = "fake-token-for-testing";
         TokenResponseDto responseDto = new TokenResponseDto();
-        responseDto.setAccessToken(authHeaderMock);
+        responseDto.setAccessToken(tokenMock);
 
         // Mocks
         when(keycloakService.checkUserExist(this.requestDto)).thenReturn(false);
         when(userService.updateUser(this.requestDto)).thenReturn(updatedUser);
         when(this.keycloakService.refreshToken(anyString())).thenReturn(responseDto);
+        when(accessKeycloak.extractToken(authHeaderMock)).thenReturn(tokenMock);
 
         // Act & Assert
         String uri = UsersController.BASE_USERS + UsersController.UPDATE_USER;
         mockMvc.perform(put(uri)
                         .contentType(MediaType.APPLICATION_JSON)
-                        .header("Authorization", "Bearer " + authHeaderMock)
+                        .header("Authorization", authHeaderMock)
                         .content(objectMapper.writeValueAsString(this.requestDto)))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.status").value("OK"))
                 .andExpect(jsonPath("$.data.userResponseDto.userName").value("Username"))
-                .andExpect(jsonPath("$.data.token.accessToken").value(authHeaderMock));
+                .andExpect(jsonPath("$.data.token.accessToken").value(tokenMock));
     }
 
     @Test

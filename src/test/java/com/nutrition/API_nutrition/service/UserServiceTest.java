@@ -44,12 +44,12 @@ class UserServiceTest {
     public void init() {
 
         this.dto = new RegisterRequestDto();
-        dto.setKeycloakId("kc123456");
-        dto.setPassword("password");
-        dto.setUserName("UserName");
-        dto.setFirstName("FirstName");
-        dto.setLastName("LastName");
-        dto.setEmail("FirstName.LastName@example.com");
+        dto.getKeycloakUserData().setKeycloakId("kc123456");
+        dto.getKeycloakUserData().setPassword("password");
+        dto.getKeycloakUserData().setUserName("UserName");
+        dto.getKeycloakUserData().setFirstName("FirstName");
+        dto.getKeycloakUserData().setLastName("LastName");
+        dto.getKeycloakUserData().setEmail("FirstName.LastName@example.com");
         dto.setBirthdate(LocalDate.of(1990, 1, 1));
         dto.setGender(Gender.MALE);
         dto.setHeight((short) 180);
@@ -64,7 +64,7 @@ class UserServiceTest {
         // Simuler les appels à KeycloakService (void methods)
         doNothing().when(keycloakService).createUser(any());
         doNothing().when(keycloakService).addUserRolesClient(
-                this.dto.getKeycloakId(), List.of("USER"));
+                this.dto.getKeycloakUserData().getKeycloakId(), List.of("USER"));
 
         // Simuler la sauvegarde en base
         ArgumentCaptor<User> userCaptor = ArgumentCaptor.forClass(User.class);
@@ -78,10 +78,10 @@ class UserServiceTest {
 
         // Vérifier le retour capturé
         User capturedUser = userCaptor.getValue();
-        assertEquals(dto.getKeycloakId(), capturedUser.getKeycloakId());
-        assertEquals(dto.getEmail(), capturedUser.getEmail());
-        assertEquals(dto.getFirstName(), capturedUser.getFirstName());
-        assertEquals(dto.getLastName(), capturedUser.getLastName());
+        assertEquals(dto.getKeycloakUserData().getKeycloakId(), capturedUser.getKeycloakId());
+        assertEquals(dto.getKeycloakUserData().getEmail(), capturedUser.getEmail());
+        assertEquals(dto.getKeycloakUserData().getFirstName(), capturedUser.getFirstName());
+        assertEquals(dto.getKeycloakUserData().getLastName(), capturedUser.getLastName());
         assertEquals(dto.getBirthdate(), capturedUser.getBirthDate());
         assertEquals(dto.getGender(), capturedUser.getGender());
         assertEquals(dto.getHeight(), capturedUser.getHeight());
@@ -89,7 +89,7 @@ class UserServiceTest {
 
         // Vérifie que les méthodes void ont bien été appelées
         verify(keycloakService).createUser(any());
-        verify(keycloakService).addUserRolesClient(dto.getKeycloakId(), List.of("USER"));
+        verify(keycloakService).addUserRolesClient(dto.getKeycloakUserData().getKeycloakId(), List.of("USER"));
     }
 
     @Test
@@ -187,11 +187,11 @@ class UserServiceTest {
         assertNotNull(userResponseDto);
         User resutltatUser = argumentCaptor.getValue();
 
-        assertEquals(dto.getKeycloakId(), resutltatUser.getKeycloakId());
-        assertEquals(dto.getUserName(), resutltatUser.getUsername());
-        assertEquals(dto.getFirstName(), resutltatUser.getFirstName());
-        assertEquals(dto.getLastName(), resutltatUser.getLastName());
-        assertEquals(dto.getEmail(), resutltatUser.getEmail());
+        assertEquals(dto.getKeycloakUserData().getKeycloakId(), resutltatUser.getKeycloakId());
+        assertEquals(dto.getKeycloakUserData().getUserName(), resutltatUser.getUsername());
+        assertEquals(dto.getKeycloakUserData().getFirstName(), resutltatUser.getFirstName());
+        assertEquals(dto.getKeycloakUserData().getLastName(), resutltatUser.getLastName());
+        assertEquals(dto.getKeycloakUserData().getEmail(), resutltatUser.getEmail());
     }
 
     @Test

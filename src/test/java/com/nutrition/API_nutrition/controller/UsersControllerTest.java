@@ -1,6 +1,7 @@
 package com.nutrition.API_nutrition.controller;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.nutrition.API_nutrition.model.dto.KeycloakUserData;
 import com.nutrition.API_nutrition.model.dto.RegisterRequestDto;
 import com.nutrition.API_nutrition.model.dto.TokenResponseDto;
 import com.nutrition.API_nutrition.model.dto.UserResponseDto;
@@ -60,12 +61,11 @@ class UsersControllerTest {
     @BeforeEach
     public void setUp() {
         this.requestDto = new RegisterRequestDto();
-        //requestDto.setKeycloakId("keycloak-id");
-        requestDto.setUserName("Username");
-        requestDto.setFirstName("Firstname");
-        requestDto.setLastName("Lastname");
-        requestDto.setPassword("new-secret");
-        requestDto.setEmail("newemail@example.com");
+        requestDto.getKeycloakUserData().setUserName("Username");
+        requestDto.getKeycloakUserData().setFirstName("Firstname");
+        requestDto.getKeycloakUserData().setLastName("Lastname");
+        requestDto.getKeycloakUserData().setPassword("new-secret");
+        requestDto.getKeycloakUserData().setEmail("newemail@example.com");
         requestDto.setBirthdate(LocalDate.parse("2000-01-15"));
         requestDto.setGender(Gender.MALE);
         requestDto.setHeight((short) 180);
@@ -86,8 +86,8 @@ class UsersControllerTest {
         when(keycloakService.checkUserExist(any(RegisterRequestDto.class))).thenReturn(false);
         when(userService.createUser(this.requestDto)).thenReturn(userResponse);
         when(keycloakService.login(
-                this.requestDto.getUserName(),
-                this.requestDto.getPassword())).thenReturn(token);
+                this.requestDto.getKeycloakUserData().getUserName(),
+                this.requestDto.getKeycloakUserData().getPassword())).thenReturn(token);
 
         // Act & Assert
         String uri = UsersController.BASE_USERS + UsersController.REGISTER;
@@ -106,7 +106,7 @@ class UsersControllerTest {
     void shouldUpdateUserSuccessfully() throws Exception {
 
         // Arrange
-        this.requestDto.setKeycloakId("keycloak-id");
+        this.requestDto.getKeycloakUserData().setKeycloakId("keycloak-id");
         UserResponseDto updatedUser = new UserResponseDto()
                 .mappingToUser(this.requestDto.UserMapping());
 

@@ -98,12 +98,12 @@ class KeycloakServiceTest {
     @BeforeEach
     void setUp() {
         this.dto = new RegisterRequestDto();
-        dto.setKeycloakId("kc123456");
-        dto.setPassword("password");
-        dto.setUserName("UserName");
-        dto.setFirstName("FirstName");
-        dto.setLastName("LastName");
-        dto.setEmail("FirstName.LastName@example.com");
+        dto.getKeycloakUserData().setKeycloakId("kc123456");
+        dto.getKeycloakUserData().setPassword("password");
+        dto.getKeycloakUserData().setUserName("UserName");
+        dto.getKeycloakUserData().setFirstName("FirstName");
+        dto.getKeycloakUserData().setLastName("LastName");
+        dto.getKeycloakUserData().setEmail("FirstName.LastName@example.com");
         dto.setBirthdate(LocalDate.of(1990, 1, 1));
         dto.setGender(Gender.MALE);
         dto.setHeight((short) 180);
@@ -111,10 +111,10 @@ class KeycloakServiceTest {
 
         // NB: ne pas mapper le password du DTO
         this.userRepresentation = new UserRepresentation();
-        this.userRepresentation.setUsername(dto.getUserName());
-        this.userRepresentation.setFirstName(dto.getFirstName());
-        this.userRepresentation.setLastName(dto.getLastName());
-        this.userRepresentation.setEmail(dto.getEmail());
+        this.userRepresentation.setUsername(dto.getKeycloakUserData().getUserName());
+        this.userRepresentation.setFirstName(dto.getKeycloakUserData().getFirstName());
+        this.userRepresentation.setLastName(dto.getKeycloakUserData().getLastName());
+        this.userRepresentation.setEmail(dto.getKeycloakUserData().getEmail());
 
         // Objet de comportement
         lenient().when(this.keycloakProvider.getKeycloakInstance()).thenReturn(this.keycloakMock);
@@ -156,13 +156,15 @@ class KeycloakServiceTest {
         keycloakService.createUser(this.dto);
 
         // Assert - Vérifier les résultats
-        assertEquals("user-id-123", dto.getKeycloakId());
+        assertEquals("user-id-123", dto.getKeycloakUserData().getKeycloakId());
 
         // Vérifier les interactions
         verify(keycloakMock, times(2)).realm("Test-realm");
         verify(realmResource, times(2)).users();
         verify(usersResource).search(
-                this.dto.getUserName(), this.dto.getFirstName(), this.dto.getLastName(),
+                this.dto.getKeycloakUserData().getUserName(),
+                this.dto.getKeycloakUserData().getFirstName(),
+                this.dto.getKeycloakUserData().getLastName(),
                 null, null, null
         );
 
@@ -610,7 +612,8 @@ class KeycloakServiceTest {
         // Arrange
         when(keycloakMock.realm(anyString())).thenReturn(realmResource);
         when(realmResource.users()).thenReturn(usersResource);
-        when(usersResource.get(this.dto.getKeycloakId())).thenReturn(userResource);
+        when(usersResource.get(this.dto.getKeycloakUserData().getKeycloakId()))
+                .thenReturn(userResource);
         when(userResource.toRepresentation()).thenReturn(userRepresentation);
 
         // Act
@@ -620,7 +623,7 @@ class KeycloakServiceTest {
         assertTrue(result);
         verify(keycloakMock).realm("Test-realm");
         verify(realmResource).users();
-        verify(usersResource).get(this.dto.getKeycloakId());
+        verify(usersResource).get(this.dto.getKeycloakUserData().getKeycloakId());
         verify(userResource).toRepresentation();
     }
 
@@ -629,7 +632,7 @@ class KeycloakServiceTest {
     void userExistsById_shouldReturnFalseWhenIdUserDoesNotExist() {
         // Arrange
         String userId = "non-existing-user-id";
-        this.dto.setKeycloakId(userId);
+        this.dto.getKeycloakUserData().setKeycloakId(userId);
 
         when(keycloakMock.realm(anyString())).thenReturn(realmResource);
         when(realmResource.users()).thenReturn(usersResource);
@@ -649,20 +652,20 @@ class KeycloakServiceTest {
 
         // Arrange
         // Configurer le DTO sans keycloakId pour forcer le chemin de recherche par attributs
-        this.dto.setKeycloakId(null);
+        this.dto.getKeycloakUserData().setKeycloakId(null);
 
         // Créer un user qui matche exactement le DTO
         UserRepresentation mockUser = new UserRepresentation();
-        mockUser.setUsername(this.dto.getUserName());
-        mockUser.setEmail(this.dto.getEmail());
+        mockUser.setUsername(this.dto.getKeycloakUserData().getUserName());
+        mockUser.setEmail(this.dto.getKeycloakUserData().getEmail());
 
         when(keycloakMock.realm(anyString())).thenReturn(realmResource);
         when(realmResource.users()).thenReturn(usersResource);
         when(usersResource.search(
-                this.dto.getUserName(),
-                this.dto.getFirstName(),
-                this.dto.getLastName(),
-                this.dto.getEmail(),
+                this.dto.getKeycloakUserData().getUserName(),
+                this.dto.getKeycloakUserData().getFirstName(),
+                this.dto.getKeycloakUserData().getLastName(),
+                this.dto.getKeycloakUserData().getEmail(),
                 null, null))
                 .thenReturn(List.of(mockUser)); // Retourne un user qui correspond
 
@@ -675,10 +678,10 @@ class KeycloakServiceTest {
         verify(keycloakMock).realm("Test-realm");
         verify(realmResource).users();
         verify(usersResource).search( // Vérification de l'appel à search()
-                this.dto.getUserName(),
-                this.dto.getFirstName(),
-                this.dto.getLastName(),
-                this.dto.getEmail(),
+                this.dto.getKeycloakUserData().getUserName(),
+                this.dto.getKeycloakUserData().getFirstName(),
+                this.dto.getKeycloakUserData().getLastName(),
+                this.dto.getKeycloakUserData().getEmail(),
                 null, null);
     }
 
@@ -688,7 +691,7 @@ class KeycloakServiceTest {
 
         // Arrange
         // Configurer le DTO sans keycloakId pour forcer le chemin de recherche par attributs
-        this.dto.setKeycloakId(null);
+        this.dto.getKeycloakUserData().setKeycloakId(null);
 
         when(keycloakMock.realm(anyString())).thenReturn(realmResource);
         when(realmResource.users()).thenReturn(usersResource);
@@ -710,8 +713,8 @@ class KeycloakServiceTest {
     void updateUser_shouldUpdateUserSuccessfully() {
 
         // Check des variables qui potentiellement peuvent retourner une RuntimeException
-        assertNotNull(dto.getPassword(), "DTO mal configuré: password ne doit pas être null");
-        assertFalse(dto.getPassword().isEmpty(), "DTO mal configuré: password ne doit pas être vide");
+        assertNotNull(dto.getKeycloakUserData().getPassword(), "DTO mal configuré: password ne doit pas être null");
+        assertFalse(dto.getKeycloakUserData().getPassword().isEmpty(), "DTO mal configuré: password ne doit pas être vide");
 
         // Arrange - Mocks pour la chaîne d'appels Keycloak
         when(realmResource.users()).thenReturn(usersResource);
@@ -738,7 +741,7 @@ class KeycloakServiceTest {
         when(usersResource.get(anyString())).thenReturn(userResource);
         when(userResource.toRepresentation()).thenReturn(this.userRepresentation);
 
-        dto.setPassword(null);
+        dto.getKeycloakUserData().setPassword(null);
 
         // Act
         boolean status = this.keycloakService.updateUser(this.dto);
@@ -759,7 +762,7 @@ class KeycloakServiceTest {
         when(usersResource.get(anyString())).thenReturn(userResource);
         when(userResource.toRepresentation()).thenReturn(this.userRepresentation);
 
-        dto.setPassword("");
+        dto.getKeycloakUserData().setPassword("");
 
         // Act
         boolean status = this.keycloakService.updateUser(this.dto);

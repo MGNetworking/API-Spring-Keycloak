@@ -4,6 +4,7 @@ import com.nutrition.API_nutrition.model.dto.*;
 import com.nutrition.API_nutrition.model.entity.User;
 import com.nutrition.API_nutrition.model.response.GenericApiErrorResponse;
 import com.nutrition.API_nutrition.model.response.GenericApiResponse;
+import com.nutrition.API_nutrition.model.validation.OnCreateOrUpdateUser;
 import com.nutrition.API_nutrition.security.AccessKeycloak;
 import com.nutrition.API_nutrition.service.KeycloakService;
 import com.nutrition.API_nutrition.service.UserService;
@@ -19,6 +20,7 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
+import org.springframework.validation.annotation.Validated;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.Optional;
@@ -100,6 +102,7 @@ public class UsersController {
                     content = @Content(schema = @Schema(implementation = GenericApiErrorResponse.class)))
     })
     @PostMapping(value = REGISTER)
+    @Validated(OnCreateOrUpdateUser.class)
     public ResponseEntity<GenericApiResponse<ApiResponseData>> postUser(@Valid @RequestBody RegisterRequestDto userDto) {
 
         if (this.keycloakService.checkUserExist(userDto)) {
@@ -117,8 +120,8 @@ public class UsersController {
         // Créer un user
         UserResponseDto userResponseDto = this.userService.createUser(userDto);
         TokenResponseDto token = keycloakService.login(
-                userDto.getUserName(),
-                userDto.getPassword());
+                userDto.getKeycloakUserData().getUserName(),
+                userDto.getKeycloakUserData().getPassword());
 
         return ResponseEntity
                 .status(HttpStatus.CREATED)
@@ -308,7 +311,7 @@ public class UsersController {
     public ResponseEntity<GenericApiResponse<String>> deleteUser(@PathVariable String userId) {
 
         RegisterRequestDto dto = new RegisterRequestDto();
-        dto.setKeycloakId(userId);
+        dto.getKeycloakUserData().setKeycloakId(userId);
 
         if (this.keycloakService.checkUserExist(dto)) {
             return ResponseEntity
@@ -396,7 +399,7 @@ public class UsersController {
     public ResponseEntity<GenericApiResponse<ApiResponseData>> getUser(@PathVariable String userId) {
 
         RegisterRequestDto dto = new RegisterRequestDto();
-        dto.setKeycloakId(userId);
+        dto.getKeycloakUserData().setKeycloakId(userId);
 
         // Vérifier d'abord si l'utilisateur existe dans Keycloak
         if (this.keycloakService.checkUserExist(dto)) {

@@ -54,12 +54,12 @@ public class UserService {
             try {
                 // Étape 2 - Ajouter les rôles
                 //keycloakService.addUserRolesRealm(dtoSave.getKeycloakId(), List.of("USER"));
-                keycloakService.addUserRolesClient(dtoSave.getKeycloakId(), List.of("USER"));
+                keycloakService.addUserRolesClient(dtoSave.getKeycloakUserData().getKeycloakId(), List.of("USER"));
 
             } catch (Exception e) {
                 // Supprimer dans Keycloak si l'ajout de rôle échoue
                 log.warn("Role assignment failed, user Keycloak deleted: {}", e.getMessage(), e);
-                boolean status = keycloakService.removeUser(dtoSave.getKeycloakId());
+                boolean status = keycloakService.removeUser(dtoSave.getKeycloakUserData().getKeycloakId());
 
                 if (status) {
                     throw new ApiException(
@@ -110,8 +110,8 @@ public class UserService {
             // Erreur liée à Spring Data / la base
             log.warn("User persistence failed, Keycloak deleted.");
 
-            if (dtoSave.getKeycloakId() != null) {
-                keycloakService.removeUser(dtoSave.getKeycloakId());
+            if (dtoSave.getKeycloakUserData().getKeycloakId() != null) {
+                keycloakService.removeUser(dtoSave.getKeycloakUserData().getKeycloakId());
                 log.info("Keycloak user removed during cleanup.");
             } else {
                 log.error("Failed to clean up Keycloak user: {}", e.getMessage(), e);
@@ -154,7 +154,7 @@ public class UserService {
     @Transactional
     public UserResponseDto updateUser(RegisterRequestDto dto) {
 
-        if (dto == null || dto.getKeycloakId().isEmpty()) {
+        if (dto == null || dto.getKeycloakUserData().getKeycloakId().isEmpty()) {
             log.info("This dto for update User is null");
             throw new ApiException("This user cannot be null or user ID empty",
                     HttpStatus.BAD_REQUEST,
@@ -179,7 +179,7 @@ public class UserService {
                 return new UserResponseDto().mappingToUser(updateUser);
             } catch (Exception e) {
                 // En cas d'échec de la base de données, annuler l'opération Keycloak
-                this.keycloakService.removeUser(dto.getKeycloakId());
+                this.keycloakService.removeUser(dto.getKeycloakUserData().getKeycloakId());
                 throw e;
             }
 

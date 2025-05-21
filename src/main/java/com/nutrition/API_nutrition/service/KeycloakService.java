@@ -120,7 +120,7 @@ public class KeycloakService {
             log.info("user Id extract : {}", userId);
 
             // add keycloak id
-            dto.setKeycloakId(userId);
+            dto.getKeycloakUserData().setKeycloakId(userId);
 
 
         } else {
@@ -621,16 +621,16 @@ public class KeycloakService {
 
         UserRepresentation user = new UserRepresentation();
         user.setEnabled(true);
-        user.setUsername(dto.getUserName());
-        user.setEmail(dto.getEmail());
-        user.setFirstName(dto.getFirstName());
-        user.setLastName(dto.getLastName());
+        user.setUsername(dto.getKeycloakUserData().getUserName());
+        user.setEmail(dto.getKeycloakUserData().getEmail());
+        user.setFirstName(dto.getKeycloakUserData().getFirstName());
+        user.setLastName(dto.getKeycloakUserData().getLastName());
         log.info("User Representation: {}", user);
 
         // Définir les credentials
         CredentialRepresentation credential = new CredentialRepresentation();
         credential.setType(CredentialRepresentation.PASSWORD);
-        credential.setValue(dto.getPassword());
+        credential.setValue(dto.getKeycloakUserData().getPassword());
         credential.setTemporary(false);
         log.info("User credential: {}", credential);
 
@@ -667,17 +667,17 @@ public class KeycloakService {
 
         try {
 
-            if (dto.getKeycloakId() != null && !dto.getKeycloakId().isEmpty()) {
+            if (dto.getKeycloakUserData().getKeycloakId() != null && !dto.getKeycloakUserData().getKeycloakId().isEmpty()) {
 
                 log.info("Searching user by keycloak ");
                 UserRepresentation user = getKc()
                         .realm(getRealm())
                         .users()
-                        .get(dto.getKeycloakId())
+                        .get(dto.getKeycloakUserData().getKeycloakId())
                         .toRepresentation(); // → Lance NotFoundException si l'ID est introuvable
                 log.info("User is {}", user);
 
-                return user.getUsername().equals(dto.getUserName()) && user.getEmail().equals(dto.getEmail());
+                return user.getUsername().equals(dto.getKeycloakUserData().getUserName()) && user.getEmail().equals(dto.getKeycloakUserData().getEmail());
 
             } else {
 
@@ -687,10 +687,10 @@ public class KeycloakService {
                         .realm(getRealm())
                         .users()
                         .search(
-                                dto.getUserName(),
-                                dto.getFirstName(),
-                                dto.getLastName(),
-                                dto.getEmail(), null, null);
+                                dto.getKeycloakUserData().getUserName(),
+                                dto.getKeycloakUserData().getFirstName(),
+                                dto.getKeycloakUserData().getLastName(),
+                                dto.getKeycloakUserData().getEmail(), null, null);
 
                 log.info("User first list {}", listUser.get(0));
                 this.displayList(listUser);
@@ -699,8 +699,8 @@ public class KeycloakService {
                         .filter(userRepresentation -> {
                             return userRepresentation.getUsername()
                                     .equals(
-                                            dto.getUserName()) &&
-                                    userRepresentation.getEmail().equals(dto.getEmail()
+                                            dto.getKeycloakUserData().getUserName()) &&
+                                    userRepresentation.getEmail().equals(dto.getKeycloakUserData().getEmail()
                                     );
                         }).findFirst();
 
@@ -709,10 +709,10 @@ public class KeycloakService {
             }
 
         } catch (NotFoundException e) {
-            log.error("Error user not Found {}", dto.getKeycloakId(), e);
+            log.error("Error user not Found {}", dto.getKeycloakUserData().getKeycloakId(), e);
             return false;
         } catch (Exception e) {
-            log.error("Unexpected error {}", dto.getKeycloakId(), e);
+            log.error("Unexpected error {}", dto.getKeycloakUserData().getKeycloakId(), e);
             return false;
         }
 
@@ -749,27 +749,27 @@ public class KeycloakService {
             UserResource userResource = getKc()
                     .realm(getRealm())
                     .users()
-                    .get(dto.getKeycloakId());
+                    .get(dto.getKeycloakUserData().getKeycloakId());
 
             // Cette ligne lancera une exception si l'utilisateur n'existe pas
             UserRepresentation existingUser = userResource.toRepresentation();
-            existingUser.setUsername(dto.getUserName());
-            existingUser.setFirstName(dto.getFirstName());
-            existingUser.setLastName(dto.getLastName());
-            existingUser.setEmail(dto.getEmail());
+            existingUser.setUsername(dto.getKeycloakUserData().getUserName());
+            existingUser.setFirstName(dto.getKeycloakUserData().getFirstName());
+            existingUser.setLastName(dto.getKeycloakUserData().getLastName());
+            existingUser.setEmail(dto.getKeycloakUserData().getEmail());
 
             // Mise à jour du mot de passe
-            if (dto.getPassword() == null || dto.getPassword().isEmpty()) {
+            if (dto.getKeycloakUserData().getPassword() == null || dto.getKeycloakUserData().getPassword().isEmpty()) {
                 throw new RuntimeException("The user's password is missing!");
             }
 
             userResource.update(existingUser);
 
-            log.info("User update {}", dto.getUserName());
+            log.info("User update {}", dto.getKeycloakUserData().getUserName());
             return true;
 
         } catch (Exception e) {
-            log.error("User update error {}", dto.getUserName(), e);
+            log.error("User update error {}", dto.getKeycloakUserData().getUserName(), e);
             return false;
         }
     }

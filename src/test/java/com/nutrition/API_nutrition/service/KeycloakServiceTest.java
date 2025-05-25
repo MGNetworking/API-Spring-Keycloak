@@ -8,7 +8,6 @@ import com.nutrition.API_nutrition.model.dto.TokenResponseDto;
 import com.nutrition.API_nutrition.model.entity.Gender;
 import com.nutrition.API_nutrition.util.HttpClientConfig;
 import jakarta.ws.rs.NotFoundException;
-import jakarta.ws.rs.ProcessingException;
 import jakarta.ws.rs.WebApplicationException;
 import jakarta.ws.rs.core.Response;
 import lombok.extern.slf4j.Slf4j;
@@ -18,7 +17,6 @@ import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.keycloak.admin.client.Keycloak;
 import org.keycloak.admin.client.resource.*;
-import org.keycloak.representations.idm.ClientRepresentation;
 import org.keycloak.representations.idm.CredentialRepresentation;
 import org.keycloak.representations.idm.RoleRepresentation;
 import org.keycloak.representations.idm.UserRepresentation;
@@ -95,6 +93,10 @@ class KeycloakServiceTest {
 
     RegisterRequestDto dto;
 
+    RoleRepresentation role1;
+    RoleRepresentation role2;
+    List<RoleRepresentation> roleName;
+
     @BeforeEach
     void setUp() {
         this.dto = new RegisterRequestDto();
@@ -120,6 +122,11 @@ class KeycloakServiceTest {
         lenient().when(this.keycloakProvider.getKeycloakInstance()).thenReturn(this.keycloakMock);
         lenient().when(this.keycloakProvider.getRealm()).thenReturn("Test-realm");
         lenient().when(keycloakProvider.getAuthServerUrl()).thenReturn("http://localhost:8080/auth");
+
+        this.role1 = new RoleRepresentation("id-role-1", "Role test 1", true);
+        this.role2 = new RoleRepresentation("id-role-2", "Role test 2", true);
+        this.roleName = Arrays.asList(role1, role2);
+
     }
 
     @Test
@@ -186,24 +193,6 @@ class KeycloakServiceTest {
 
         // Arrange
         String userId = "id-test";
-        String role1 = "role1", role2 = "role2";
-        List<String> roleName = Arrays.asList(role1, role2);
-
-        // simule la recherche et récupération de la liste des role
-        RoleResource roleResource1 = mock(RoleResource.class);
-        RoleResource roleResource2 = mock(RoleResource.class);
-
-        RoleRepresentation roleRep1 = new RoleRepresentation();
-        RoleRepresentation roleRep2 = new RoleRepresentation();
-        roleRep1.setName(role1);
-        roleRep2.setName(role2);
-
-        when(this.rolesResource.get(role1)).thenReturn(roleResource1);
-        when(this.rolesResource.get(role2)).thenReturn(roleResource2);
-        when(this.realmResource.roles()).thenReturn(this.rolesResource);
-
-        when(roleResource1.toRepresentation()).thenReturn(roleRep1);
-        when(roleResource2.toRepresentation()).thenReturn(roleRep2);
 
         // Simulation de la partie assignation des roles
         when(this.keycloakMock.realm(anyString())).thenReturn(this.realmResource);
@@ -213,7 +202,7 @@ class KeycloakServiceTest {
         when(this.roleMappingResource.realmLevel()).thenReturn(this.roleScopeResource);
 
         // Act
-        this.keycloakService.addUserRolesRealm(userId, roleName);
+        this.keycloakService.addUserRolesRealm(userId, this.roleName);
 
         // Assert
         // Création d'objet pour capter les infos passer la methode add
@@ -225,40 +214,38 @@ class KeycloakServiceTest {
 
         // on les vérifie la correspondance des éléments
         assertEquals(roleName.size(), list.size());
-        assertEquals(roleName.get(0), list.get(0).getName());
-        assertEquals(roleName.get(1), list.get(1).getName());
+        assertEquals(roleName.get(0).getName(), list.get(0).getName());
+        assertEquals(roleName.get(1).getName(), list.get(1).getName());
 
     }
 
     @Test
     @DisplayName("Devrait lever une ApiException quand Keycloak renvoie une erreur HTTP")
     void addUserRolesRealm_shouldThrowApiException_onWebApplicationException() {
-        // Arrange
-        String userId = "user-id";
-        String role = "role1";
-        List<String> roleNames = List.of(role);
 
-        RoleResource roleResource = mock(RoleResource.class);
+        // Arrange
         when(keycloakMock.realm(anyString())).thenReturn(realmResource);
-        when(realmResource.roles()).thenReturn(rolesResource);
-        when(rolesResource.get(role)).thenReturn(roleResource);
+        when(realmResource.users()).thenReturn(usersResource);
+        when(usersResource.get(anyString())).thenReturn(userResource);
+        when(userResource.roles()).thenReturn(roleMappingResource);
+        when(roleMappingResource.realmLevel()).thenReturn(roleScopeResource);
 
         // Création d’un mock complet de Response
         Response response = mock(Response.class);
         Response.StatusType statusType = mock(Response.StatusType.class);
 
         // Simulation du comportement du Response
-        when(response.getStatus()).thenReturn(400);
-        when(statusType.getStatusCode()).thenReturn(400);
+        when(response.getStatus()).thenReturn(HttpStatus.BAD_REQUEST.value());
+        when(statusType.getStatusCode()).thenReturn(HttpStatus.BAD_REQUEST.value());
         when(response.getStatusInfo()).thenReturn(statusType);
         when(response.readEntity(String.class)).thenReturn("Invalid role");
 
         WebApplicationException webApplicationException = new WebApplicationException(response);
-        when(roleResource.toRepresentation()).thenThrow(webApplicationException);
+        doThrow(webApplicationException).when(roleScopeResource).add(anyList());
 
         // Act & Assert
         ApiException apiException = assertThrows(ApiException.class, () ->
-                keycloakService.addUserRolesRealm(userId, roleNames));
+                keycloakService.addUserRolesRealm("id-test", this.roleName));
 
         assertEquals(
                 ErrorCode.USER_ROLE_ASSIGNMENT_FAILED.toString(),
@@ -267,203 +254,97 @@ class KeycloakServiceTest {
 
     }
 
-    @Test
-    @DisplayName("Devrait lever une ApiException en cas d'erreur réseau")
-    void addUserRolesRealm_shouldThrowApiException_onProcessingException() {
-        // Arrange
-        String userId = "user-id";
-        String role = "role1";
-        List<String> roleNames = List.of(role);
-
-        RoleResource roleResource = mock(RoleResource.class);
-        when(keycloakMock.realm(anyString())).thenReturn(realmResource);
-        when(realmResource.roles()).thenReturn(rolesResource);
-        when(rolesResource.get(role)).thenReturn(roleResource);
-        when(roleResource.toRepresentation()).thenThrow(new ProcessingException("Timeout"));
-
-        // Act & Assert
-        ApiException exception = assertThrows(ApiException.class, () ->
-                keycloakService.addUserRolesRealm(userId, roleNames));
-
-        assertEquals(ErrorCode.NETWORK_ERROR.toString(), exception.getErrorCode());
-        assertTrue(exception.getMessage().contains("Network error"));
-    }
-
-    @Test
-    @DisplayName("Devrait lever une ApiException pour toute autre exception")
-    void addUserRolesRealm_shouldThrowApiException_onUnexpectedException() {
-        // Arrange
-        String userId = "user-id";
-        String role = "role1";
-        List<String> roleNames = List.of(role);
-
-        RoleResource roleResource = mock(RoleResource.class);
-        when(keycloakMock.realm(anyString())).thenReturn(realmResource);
-        when(realmResource.roles()).thenReturn(rolesResource);
-        when(rolesResource.get(role)).thenReturn(roleResource);
-        when(roleResource.toRepresentation()).thenThrow(new RuntimeException("Unexpected error"));
-
-        // Act & Assert
-        ApiException exception = assertThrows(ApiException.class, () ->
-                keycloakService.addUserRolesRealm(userId, roleNames));
-
-        assertEquals(ErrorCode.TECHNICAL_ERROR.toString(), exception.getErrorCode());
-        assertTrue(exception.getMessage().contains("Unknown error"));
-    }
-
 
     @Test
     @DisplayName("Devrait ajouté un role de porter client a un utilisateur avec succès")
     void addUserRolesClient_shouldAddRoleUserSuccessfullyClient() {
 
         // Arrange
-        String userId = "id-test";
-        String role1 = "role1", role2 = "role2";
-        List<String> roleName = Arrays.asList(role1, role2);
-
-        // Préparation du client
-        ClientRepresentation mockClient = new ClientRepresentation();
-        mockClient.setId("client-id");
-        mockClient.setClientId("test-client");
-
-        // Préparation des rôles
-        RoleRepresentation roleRep1 = new RoleRepresentation();
-        roleRep1.setName(role1);
-        RoleRepresentation roleRep2 = new RoleRepresentation();
-        roleRep2.setName(role2);
-
-        RoleResource roleResource1 = mock(RoleResource.class);
-        RoleResource roleResource2 = mock(RoleResource.class);
-
-
-        // Mock du provider
-        when(this.keycloakProvider.getClientId()).thenReturn("test-client");
-
-        // Étape 1 : getKc().realm().clients().findByClientId(...)
-        when(this.keycloakMock.realm(anyString())).thenReturn(this.realmResource);
-        when(this.realmResource.clients()).thenReturn(this.clientsResource);
-        when(this.clientsResource.findByClientId("test-client"))
-                .thenReturn(List.of(mockClient));
-
-        // Étape 2 : récupération des rôles du client
-        when(this.clientsResource.get("client-id")).thenReturn(this.clientResource);
-        when(this.clientResource.roles()).thenReturn(this.rolesResource);
-        when(this.rolesResource.get(role1)).thenReturn(roleResource1);
-        when(this.rolesResource.get(role2)).thenReturn(roleResource2);
-        when(roleResource1.toRepresentation()).thenReturn(roleRep1);
-        when(roleResource2.toRepresentation()).thenReturn(roleRep2);
-
-        // Étape 3 : assignation des rôles
-        when(this.realmResource.users()).thenReturn(this.usersResource);
-        when(this.usersResource.get(userId)).thenReturn(this.userResource);
-        when(this.userResource.roles()).thenReturn(this.roleMappingResource);
-        when(this.roleMappingResource.clientLevel("client-id"))
-                .thenReturn(this.roleScopeResource);
+        when(keycloakMock.realm(anyString())).thenReturn(realmResource);
+        when(realmResource.users()).thenReturn(usersResource);
+        when(usersResource.get(anyString())).thenReturn(userResource);
+        when(userResource.roles()).thenReturn(roleMappingResource);
+        when(roleMappingResource.clientLevel(anyString())).thenReturn(roleScopeResource);
+        doNothing().when(roleScopeResource).add(this.roleName);
 
         // Act
-        this.keycloakService.addUserRolesClient(userId, roleName);
+        this.keycloakService.addUserRolesClient("id-test", this.roleName);
 
         // Assert
-        // Création d'objet pour capter les infos passer la methode add
+        // Création d'objet pour capter les infos passer la methode addUserRolesClient
         ArgumentCaptor<List<RoleRepresentation>> rolesCaptor = ArgumentCaptor.forClass(List.class);
         verify(this.roleScopeResource).add(rolesCaptor.capture());
 
         // On les vérifie la correspondance des éléments
         List<RoleRepresentation> capturedRoles = rolesCaptor.getValue();
-        assertEquals(roleName.size(), capturedRoles.size());
-        assertEquals(role1, capturedRoles.get(0).getName());
-        assertEquals(role2, capturedRoles.get(1).getName());
+        assertEquals(this.roleName.size(), capturedRoles.size());
+        assertEquals(role1.getName(), capturedRoles.get(0).getName());
+        assertEquals(role2.getName(), capturedRoles.get(1).getName());
 
     }
 
-    @Test
-    @DisplayName("Devrait lever une ApiException si le client est introuvable")
-    void addUserRolesClient_shouldThrowApiException_whenClientNotFound() {
-        // Arrange
-        String userId = "id-test";
-        List<String> roleNames = List.of("role1");
 
-        when(keycloakProvider.getClientId()).thenReturn("test-client");
+    @Test
+    @DisplayName("Devrait lever une ApiException si une erreur survient lors de l'ajout de rôles")
+    void addUserRolesClient_shouldThrowTechnicalException() {
+
+        // Arrange
         when(keycloakMock.realm(anyString())).thenReturn(realmResource);
-        when(realmResource.clients()).thenReturn(clientsResource);
-        when(clientsResource.findByClientId("test-client")).thenReturn(Collections.emptyList());
+        when(realmResource.users()).thenReturn(usersResource);
+        when(usersResource.get(anyString())).thenReturn(userResource);
+        when(userResource.roles()).thenReturn(roleMappingResource);
+        when(roleMappingResource.clientLevel(anyString())).thenReturn(roleScopeResource);
+
+        // On force une exception générique (Exception et non WebApplicationException)
+        doThrow(new RuntimeException("Erreur inattendue")).when(roleScopeResource).add(anyList());
 
         // Act & Assert
-        ApiException exception = assertThrows(ApiException.class,
-                () -> keycloakService.addUserRolesClient(userId, roleNames));
+        ApiException exception = assertThrows(ApiException.class, () -> {
+            this.keycloakService.addUserRolesClient("id-test", this.roleName);
+        });
 
-        assertEquals(ErrorCode.USER_ROLE_ASSIGNMENT_FAILED.toString(), exception.getErrorCode());
+        // Vérifie que c’est bien l’exception technique
+        assertEquals(HttpStatus.INTERNAL_SERVER_ERROR, exception.getHttpStatus());
+        assertEquals(ErrorCode.TECHNICAL_ERROR.toString(), exception.getErrorCode());
+
+        // On vérifie que la méthode add a bien été invoquée
+        verify(roleScopeResource).add(roleName);
+
     }
 
     @Test
     @DisplayName("Devrait lever une ApiException quand Keycloak renvoie une erreur HTTP")
     void addUserRolesClient_shouldThrowApiException_onWebApplicationException() {
+
         // Arrange
-        String userId = "user-id";
-        String roleName = "role1";
-        List<String> roleNames = List.of(roleName);
-
-        // Client mocké trouvé
-        ClientRepresentation clientRepresentation = new ClientRepresentation();
-        clientRepresentation.setClientId("client-id");
-        clientRepresentation.setId("client-uuid");
-
-        when(keycloakProvider.getClientId()).thenReturn("client-id");
         when(keycloakMock.realm(anyString())).thenReturn(realmResource);
-        when(realmResource.clients()).thenReturn(clientsResource);
-        when(clientsResource.findByClientId("client-id")).thenReturn(List.of(clientRepresentation));
-        when(clientsResource.get("client-uuid")).thenReturn(clientResource);
-        when(clientResource.roles()).thenReturn(rolesResource);
-        RoleResource roleResource = mock(RoleResource.class);
-        when(rolesResource.get(roleName)).thenReturn(roleResource);
+        when(realmResource.users()).thenReturn(usersResource);
+        when(usersResource.get(anyString())).thenReturn(userResource);
+        when(userResource.roles()).thenReturn(roleMappingResource);
+        when(roleMappingResource.clientLevel(anyString())).thenReturn(roleScopeResource);
 
-        // Réponse mockée
+        // Construction de la réponse simulée avec un message d’erreur
         Response response = mock(Response.class);
         Response.StatusType statusType = mock(Response.StatusType.class);
-        when(statusType.getStatusCode()).thenReturn(400);
+        when(statusType.getStatusCode()).thenReturn(HttpStatus.BAD_REQUEST.value());
+        when(response.getStatus()).thenReturn(HttpStatus.BAD_REQUEST.value());
         when(response.getStatusInfo()).thenReturn(statusType);
-        when(response.getStatus()).thenReturn(400);
         when(response.readEntity(String.class)).thenReturn("Invalid role");
 
-        WebApplicationException exception = new WebApplicationException(response);
-        when(roleResource.toRepresentation()).thenThrow(exception);
+        // Simulation de l'exception HTTP de Keycloak
+        WebApplicationException webEx = new WebApplicationException(response);
+        doThrow(webEx).when(roleScopeResource).add(anyList());
 
         // Act & Assert
         ApiException ex = assertThrows(ApiException.class, () ->
-                keycloakService.addUserRolesClient(userId, roleNames));
+                keycloakService.addUserRolesClient("id-test", roleName));
 
+        assertEquals(HttpStatus.BAD_REQUEST, ex.getHttpStatus());
         assertEquals(ErrorCode.USER_ROLE_ASSIGNMENT_FAILED.toString(), ex.getErrorCode());
+
+        verify(roleScopeResource).add(anyList());
     }
 
-    @Test
-    @DisplayName("Devrait lever une ApiException pour erreur réseau (ProcessingException)")
-    void addUserRolesClient_shouldThrowApiException_onProcessingException() {
-        // Arrange
-        String userId = "user-id";
-        String roleName = "role1";
-        List<String> roleNames = List.of(roleName);
-
-        ClientRepresentation clientRepresentation = new ClientRepresentation();
-        clientRepresentation.setClientId("client-id");
-        clientRepresentation.setId("client-uuid");
-
-        when(keycloakProvider.getClientId()).thenReturn("client-id");
-        when(keycloakMock.realm(anyString())).thenReturn(realmResource);
-        when(realmResource.clients()).thenReturn(clientsResource);
-        when(clientsResource.findByClientId("client-id")).thenReturn(List.of(clientRepresentation));
-        when(clientsResource.get("client-uuid")).thenReturn(clientResource);
-        when(clientResource.roles()).thenReturn(rolesResource);
-        RoleResource roleResource = mock(RoleResource.class);
-        when(rolesResource.get(roleName)).thenReturn(roleResource);
-
-        when(roleResource.toRepresentation()).thenThrow(new ProcessingException("Timeout"));
-
-        // Act & Assert
-        ApiException ex = assertThrows(ApiException.class, () ->
-                keycloakService.addUserRolesClient(userId, roleNames));
-
-        assertEquals(ErrorCode.NETWORK_ERROR.toString(), ex.getErrorCode());
-    }
 
     @Test
     @DisplayName("Devrait authentifier l'utilisateur avec succès")
@@ -480,15 +361,12 @@ class KeycloakServiceTest {
 
             // Configuration des comportements
             when(this.httpClientConfig.postRequest(
-                    anyString(), anyString(), anyString()))
-                    .thenReturn(request);
+                    anyString(), anyString(), anyString())).thenReturn(request);
 
-            when(response.statusCode()).thenReturn(200);
+            when(response.statusCode()).thenReturn(HttpStatus.OK.value());
             when(response.body()).thenReturn(responseBody);
 
-            when(httpClient.send(
-                    any(HttpRequest.class),
-                    any(HttpResponse.BodyHandler.class)))
+            when(httpClient.send(any(HttpRequest.class), any(HttpResponse.BodyHandler.class)))
                     .thenReturn(response);
 
             // Act
@@ -523,7 +401,7 @@ class KeycloakServiceTest {
         when(httpClientConfig.postRequest(anyString(), anyString(), anyString()))
                 .thenReturn(httpRequestMock);
 
-        when(httpResponseMock.statusCode()).thenReturn(401);
+        when(httpResponseMock.statusCode()).thenReturn(HttpStatus.UNAUTHORIZED.value());
         when(httpResponseMock.body()).thenReturn(errorResponseBody);
 
         when(httpClient.send(any(HttpRequest.class), any(HttpResponse.BodyHandler.class)))
@@ -550,16 +428,13 @@ class KeycloakServiceTest {
         HttpResponse<String> response = mock(HttpResponse.class);
 
         // Configuration des comportements
-        when(this.httpClientConfig.postRequest(
-                anyString(), anyString(), anyString()))
+        when(this.httpClientConfig.postRequest(anyString(), anyString(), anyString()))
                 .thenReturn(request);
 
-        when(response.statusCode()).thenReturn(200);
+        when(response.statusCode()).thenReturn(HttpStatus.OK.value());
         when(response.body()).thenReturn(responseBody);
 
-        when(httpClient.send(
-                any(HttpRequest.class),
-                any(HttpResponse.BodyHandler.class)))
+        when(httpClient.send(any(HttpRequest.class), any(HttpResponse.BodyHandler.class)))
                 .thenReturn(response);
 
         // Act
@@ -586,14 +461,11 @@ class KeycloakServiceTest {
 
         when(keycloakProvider.getClientId()).thenReturn("clientId");
         when(keycloakProvider.getClientSecret()).thenReturn("clientSecret");
-
-        when(httpClientConfig.postRequest(
-                anyString(), anyString(), anyString()))
+        when(httpClientConfig.postRequest(anyString(), anyString(), anyString()))
                 .thenReturn(httpRequestMock);
 
-        when(httpResponseMock.statusCode()).thenReturn(401);
+        when(httpResponseMock.statusCode()).thenReturn(HttpStatus.UNAUTHORIZED.value());
         when(httpResponseMock.body()).thenReturn(errorResponseBody);
-
         when(httpClient.send(any(HttpRequest.class), any(HttpResponse.BodyHandler.class)))
                 .thenReturn(httpResponseMock);
 
@@ -930,13 +802,10 @@ class KeycloakServiceTest {
 
         when(this.httpClientConfig.getRequest(anyString(), anyString()))
                 .thenReturn(request);
-
-        when(this.httpClient.send(
-                any(HttpRequest.class),
-                any(HttpResponse.BodyHandler.class)))
+        when(this.httpClient.send(any(HttpRequest.class), any(HttpResponse.BodyHandler.class)))
                 .thenReturn(response);
 
-        when(response.statusCode()).thenReturn(200);
+        when(response.statusCode()).thenReturn(HttpStatus.OK.value());
 
         // Act
         boolean result = keycloakService.validateToken(token);
@@ -961,7 +830,7 @@ class KeycloakServiceTest {
         HttpResponse<String> response = mock(HttpResponse.class);
 
         when(this.httpClientConfig.getRequest(anyString(), anyString())).thenReturn(request);
-        when(response.statusCode()).thenReturn(401);
+        when(response.statusCode()).thenReturn(HttpStatus.UNAUTHORIZED.value());
         when(httpClient.send(any(HttpRequest.class), any(HttpResponse.BodyHandler.class))).thenReturn(response);
 
         // Act

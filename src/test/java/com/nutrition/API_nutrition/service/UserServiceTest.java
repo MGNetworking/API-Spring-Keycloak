@@ -12,6 +12,7 @@ import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
+import org.keycloak.representations.idm.RoleRepresentation;
 import org.mockito.ArgumentCaptor;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
@@ -19,6 +20,7 @@ import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.http.HttpStatus;
 
 import java.time.LocalDate;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
 
@@ -62,9 +64,14 @@ class UserServiceTest {
 
         // Arrange : créer les objet de simulation
         // Simuler les appels à KeycloakService (void methods)
+
+        List<RoleRepresentation> roleRepresentations = new ArrayList<>();
+        RoleRepresentation roleUser = new RoleRepresentation(
+                "ROLE_USER", "Role user test", true);
+
         doNothing().when(keycloakService).createUser(any());
         doNothing().when(keycloakService).addUserRolesClient(
-                this.dto.getKeycloakUserData().getKeycloakId(), List.of("USER"));
+                this.dto.getKeycloakUserData().getKeycloakId(), List.of(roleUser));
 
         // Simuler la sauvegarde en base
         ArgumentCaptor<User> userCaptor = ArgumentCaptor.forClass(User.class);
@@ -89,7 +96,7 @@ class UserServiceTest {
 
         // Vérifie que les méthodes void ont bien été appelées
         verify(keycloakService).createUser(any());
-        verify(keycloakService).addUserRolesClient(dto.getKeycloakUserData().getKeycloakId(), List.of("USER"));
+        verify(keycloakService).addUserRolesClient(dto.getKeycloakUserData().getKeycloakId(), List.of(roleUser));
     }
 
     @Test
@@ -108,7 +115,7 @@ class UserServiceTest {
         });
 
         // Vérifie que le message d'erreur contient la chaîne attendue
-        assertEquals(ErrorCode.USER_CREATION_FAILED.toString() , exception.getErrorCode());
+        assertEquals(ErrorCode.USER_CREATION_FAILED.toString(), exception.getErrorCode());
 
         // Vérifie que la méthode de sauvegarde en base n'a pas été appelée
         verify(userRepository, never()).save(any());

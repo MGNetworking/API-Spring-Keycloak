@@ -48,7 +48,7 @@ public class AuthController {
     )
     @ApiResponses(value = {
             @ApiResponse(responseCode = "200", description = "Authentification réussie. Un token d'accès est retourné.",
-                    content = @Content(schema = @Schema(implementation = GenericApiErrorResponse.class))),
+                    content = @Content(schema = @Schema(implementation = GenericApiResponse.class))),
             @ApiResponse(responseCode = "400", description = "Requête invalide : paramètres manquants ou malformés.",
                     content = @Content(schema = @Schema(implementation = GenericApiErrorResponse.class))),
             @ApiResponse(responseCode = "401", description = "Identifiants incorrects : l'utilisateur n'est pas authentifié.",
@@ -84,7 +84,7 @@ public class AuthController {
     )
     @ApiResponses(value = {
             @ApiResponse(responseCode = "200", description = "Déconnexion réussie",
-                    content = @Content(schema = @Schema(implementation = GenericApiErrorResponse.class))),
+                    content = @Content(schema = @Schema(implementation = GenericApiResponse.class))),
             @ApiResponse(responseCode = "400", description = "Requête mal formée (ex: token invalide)",
                     content = @Content(schema = @Schema(implementation = GenericApiErrorResponse.class))),
             @ApiResponse(responseCode = "401", description = "Non autorisé (token expiré ou manquant)",
@@ -121,7 +121,7 @@ public class AuthController {
     )
     @ApiResponses(value = {
             @ApiResponse(responseCode = "201", description = "Rafraîchissement du token réussi",
-                    content = @Content(schema = @Schema(implementation = GenericApiErrorResponse.class))),
+                    content = @Content(schema = @Schema(implementation = GenericApiResponse.class))),
             @ApiResponse(responseCode = "400", description = "Requête mal formée (ex: token invalide)",
                     content = @Content(schema = @Schema(implementation = GenericApiErrorResponse.class))),
             @ApiResponse(responseCode = "401", description = "Non autorisé (token expiré ou manquant)",

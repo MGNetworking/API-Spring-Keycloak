@@ -11,7 +11,6 @@ import com.nutrition.API_nutrition.model.dto.TokenResponseDto;
 import com.nutrition.API_nutrition.util.HttpClientConfig;
 import jakarta.ws.rs.ForbiddenException;
 import jakarta.ws.rs.NotFoundException;
-import jakarta.ws.rs.ProcessingException;
 import jakarta.ws.rs.WebApplicationException;
 import jakarta.ws.rs.core.Response;
 import lombok.extern.slf4j.Slf4j;
@@ -31,7 +30,6 @@ import java.net.http.HttpResponse;
 import java.nio.charset.StandardCharsets;
 import java.util.List;
 import java.util.Optional;
-import java.util.stream.Collectors;
 
 /**
  * Service responsable de la gestion des utilisateurs dans Keycloak.
@@ -150,25 +148,13 @@ public class KeycloakService {
      *     <li><strong>Exception</strong> : toute erreur imprévue, encapsulée dans une {@link ApiException} avec un statut 500.</li>
      * </ul>
      *
-     * @param userId    l’identifiant Keycloak de l’utilisateur à qui assigner les rôles.
-     * @param roleNames la liste des noms des rôles realm-level à assigner.
+     * @param userId              l’identifiant Keycloak de l’utilisateur à qui assigner les rôles.
+     * @param roleRepresentations la liste des noms des rôles realm-level à assigner.
      * @throws ApiException si une erreur survient durant l’assignation des rôles.
      */
-    public void addUserRolesRealm(String userId, List<String> roleNames) throws ApiException {
+    public void addUserRolesRealm(String userId, List<RoleRepresentation> roleRepresentations) throws ApiException {
+
         try {
-            log.info("Search for and retrieve the roles to be signed by the target user.");
-            List<RoleRepresentation> roles = roleNames.stream()
-                    .map(roleName -> {
-                        log.info("Check that the following role exists in realm {}", roleName);
-                        return getKc().realm(getRealm())
-                                .roles()
-                                .get(roleName)
-                                .toRepresentation();
-                    })
-                    .collect(Collectors.toList());
-
-
-            this.displayList(roles);
 
             // Assigner les rôles à l'utilisateur
             getKc().realm(getRealm())
@@ -176,7 +162,7 @@ public class KeycloakService {
                     .get(userId)
                     .roles()
                     .realmLevel()
-                    .add(roles);
+                    .add(roleRepresentations);
 
         } catch (WebApplicationException e) {
 
@@ -188,14 +174,6 @@ public class KeycloakService {
                     "An error occurred while assigning a role to the user '%s'".formatted(userId),
                     HttpStatus.valueOf(status),
                     ErrorCode.USER_ROLE_ASSIGNMENT_FAILED.toString()
-            );
-
-        } catch (ProcessingException e) {
-            log.error("Network or local processing error : {}", e.getMessage());
-            throw new ApiException(
-                    "Network error during role assignment '%s'".formatted(userId),
-                    HttpStatus.SERVICE_UNAVAILABLE,
-                    ErrorCode.NETWORK_ERROR.toString()
             );
 
         } catch (Exception e) {
@@ -229,82 +207,34 @@ public class KeycloakService {
      *     <li><strong>Exception</strong> : toute erreur imprévue, encapsulée dans une {@link ApiException} avec un statut 500.</li>
      * </ul>
      *
-     * @param userId    l’identifiant Keycloak de l’utilisateur auquel les rôles doivent être assignés.
-     * @param roleNames la liste des noms des rôles client-level à assigner.
+     * @param userId              l’identifiant Keycloak de l’utilisateur auquel les rôles doivent être assignés.
+     * @param roleRepresentations la liste des noms des rôles client-level à assigner.
      * @throws ApiException si une erreur survient lors de l’assignation des rôles.
      */
-    public void addUserRolesClient(String userId, List<String> roleNames) throws ApiException {
+    public void addUserRolesClient(String userId, List<RoleRepresentation> roleRepresentations) throws ApiException {
+
         try {
-
-            log.info("Get client API {} ", this.keycloakProvider.getClientId());
-            List<ClientRepresentation> clients = getKc().realm(getRealm())
-                    .clients()
-                    .findByClientId(this.keycloakProvider.getClientId());
-
-            Optional<ClientRepresentation> customerSearching = clients.stream()
-                    .filter(client -> {
-                        log.info("Client ID {} ", client.getClientId());
-                        return client.getClientId().equals(this.keycloakProvider.getClientId());
-                    })
-                    .findFirst();
-
-
-            if (customerSearching.isEmpty()) {
-                throw new ApiException(
-                        "an error occurred while searching for the API client '%s'".formatted(this.keycloakProvider.getClientId()),
-                        HttpStatus.BAD_REQUEST,
-                        ErrorCode.USER_ROLE_ASSIGNMENT_FAILED.toString()
-                );
-            }
-
-            log.info("Search role client in API customers {}", customerSearching.get().getClientId());
-
-            List<RoleRepresentation> roles = roleNames.stream()
-                    .map(roleName -> {
-                        log.info("Role search {} in the customer {}", roleName, customerSearching.get().getClientId());
-                        return getKc().realm(getRealm())
-                                .clients()
-                                .get(customerSearching.get().getId())
-                                .roles()
-                                .get(roleName)
-                                .toRepresentation();
-                    })
-                    .collect(Collectors.toList());
-
-
-            this.displayList(roles);
 
             // Assigner des rôles à un utilisateur pour un client spécifique
             getKc().realm(getRealm())
                     .users()
                     .get(userId)
                     .roles()
-                    .clientLevel(customerSearching.get().getId())
-                    .add(roles);
-
-        } catch (ApiException e) {
-            // Si une ApiException est déjà lancée, la capturer sans la modifier
-            log.error("The role could not be assigned to the user : {}", e.getMessage(), e);
-            throw e;  // Relance de l'exception sans modification
+                    .clientLevel(userId)
+                    .add(roleRepresentations);
 
         } catch (WebApplicationException e) {
 
             int status = e.getResponse().getStatus();
             String body = e.getResponse().readEntity(String.class);
+
+            log.error("The role could not be assigned to the user : {}", e.getMessage(), e);
             log.error("HTTP Error {} : {}", status, "Keycloak replied with an error: " + body);
 
             throw new ApiException(
                     "An error occurred while assigning a role to the user '%s'".formatted(userId),
                     HttpStatus.valueOf(status),
                     ErrorCode.USER_ROLE_ASSIGNMENT_FAILED.toString()
-            );
-
-        } catch (ProcessingException e) {
-            log.error("Network or local processing error : {}", e.getMessage());
-            throw new ApiException(
-                    "Network error during role assignment '%s'".formatted(userId),
-                    HttpStatus.SERVICE_UNAVAILABLE,
-                    ErrorCode.NETWORK_ERROR.toString()
             );
 
         } catch (Exception e) {
@@ -316,6 +246,68 @@ public class KeycloakService {
             );
         }
     }
+
+    /**
+     * get list role realm
+     */
+    public List<RoleRepresentation> getRealmScopedRoles() {
+        return getKc().realm(getRealm())
+                .roles()
+                .list();
+    }
+
+    /**
+     * get list role client
+     */
+    public List<RoleRepresentation> getClientScopedRoles() {
+        ClientRepresentation client = getKc().realm(getRealm())
+                .clients()
+                .findByClientId(this.keycloakProvider.getClientId())
+                .stream()
+                .findFirst()
+                .orElseThrow(() -> new ApiException(
+                        "Client not found",
+                        HttpStatus.BAD_REQUEST,
+                        ErrorCode.KEYCLOAK_BAD_REQUEST.toString()
+                ));
+
+        return getKc().realm(getRealm())
+                .clients()
+                .get(client.getId())
+                .roles()
+                .list();
+    }
+
+    /**
+     * Delete role Realm
+     * @param userId
+     * @param roleRepresentations
+     */
+    public void removeRealmRoleFromUser(String userId, List<RoleRepresentation> roleRepresentations) {
+
+        getKc().realm(getRealm())
+                .users()
+                .get(userId)
+                .roles()
+                .realmLevel()
+                .remove(roleRepresentations);
+    }
+
+    /**
+     * Delete role client
+     * @param userId
+     * @param roleRepresentations
+     */
+    public void removeClientRoleFromUser(String userId, List<RoleRepresentation> roleRepresentations) {
+
+        getKc().realm(getRealm())
+                .users()
+                .get(userId)
+                .roles()
+                .clientLevel(userId)
+                .remove(roleRepresentations);
+    }
+
 
     /**
      * Authentifie un utilisateur auprès de Keycloak en utilisant le flux "password grant" de OpenID Connect.
@@ -863,5 +855,10 @@ public class KeycloakService {
             log.error("Error serializing list", e);
         }
     }
+
+    public List<UserRepresentation> getAllUser() {
+        return this.getKc().realm(this.getRealm()).users().list();
+    }
+
 
 }

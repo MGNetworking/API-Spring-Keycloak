@@ -84,7 +84,7 @@ public class UsersController {
     @ApiResponses(value = {
             @ApiResponse(responseCode = "201",
                     description = "Création réussie : l'utilisateur a était créé avec succès",
-                    content = @Content(schema = @Schema(implementation = GenericApiErrorResponse.class))),
+                    content = @Content(schema = @Schema(implementation = GenericApiResponse.class))),
             @ApiResponse(responseCode = "400",
                     description = "Requête invalide : paramètres manquants ou malformés.",
                     content = @Content(schema = @Schema(implementation = GenericApiErrorResponse.class))),
@@ -179,7 +179,7 @@ public class UsersController {
     @ApiResponses(value = {
             @ApiResponse(responseCode = "200",
                     description = "Mise à jours : l'utilisateur à était mise à jour avec succès",
-                    content = @Content(schema = @Schema(implementation = GenericApiErrorResponse.class))),
+                    content = @Content(schema = @Schema(implementation = GenericApiResponse.class))),
             @ApiResponse(responseCode = "400",
                     description = "Requête invalide : paramètres manquants ou malformés.",
                     content = @Content(schema = @Schema(implementation = GenericApiErrorResponse.class))),
@@ -285,7 +285,7 @@ public class UsersController {
     @ApiResponses(value = {
             @ApiResponse(responseCode = "204",
                     description = "Suppression réussi : l'utilisateur à était supprimer avec succès",
-                    content = @Content(schema = @Schema(implementation = GenericApiErrorResponse.class))),
+                    content = @Content(schema = @Schema(implementation = GenericApiResponse.class))),
             @ApiResponse(responseCode = "400",
                     description = "Requête invalide",
                     content = @Content(schema = @Schema(implementation = GenericApiErrorResponse.class))),
@@ -376,7 +376,7 @@ public class UsersController {
     @ApiResponses(value = {
             @ApiResponse(responseCode = "200",
                     description = "L'utilisateur à était trouver avec succès",
-                    content = @Content(schema = @Schema(implementation = GenericApiErrorResponse.class))),
+                    content = @Content(schema = @Schema(implementation = GenericApiResponse.class))),
             @ApiResponse(responseCode = "400",
                     description = "Requête invalide",
                     content = @Content(schema = @Schema(implementation = GenericApiErrorResponse.class))),

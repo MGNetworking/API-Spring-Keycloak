@@ -9,6 +9,7 @@ import com.nutrition.API_nutrition.repository.UserRepository;
 import jakarta.transaction.Transactional;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.keycloak.representations.idm.RoleRepresentation;
 import org.springframework.dao.DataAccessException;
 import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.dao.TransientDataAccessException;
@@ -52,9 +53,26 @@ public class UserService {
             this.keycloakService.createUser(dtoSave);
 
             try {
-                // Étape 2 - Ajouter les rôles
-                //keycloakService.addUserRolesRealm(dtoSave.getKeycloakId(), List.of("USER"));
-                keycloakService.addUserRolesClient(dtoSave.getKeycloakUserData().getKeycloakId(), List.of("USER"));
+
+                // Étape 2 - Récupération des rôles disponibles
+                List<RoleRepresentation> availableRoles = keycloakService.getClientScopedRoles();
+
+                // Recherche du rôle "ROLE_USER"
+                RoleRepresentation userRole = availableRoles.stream()
+                        .filter(role -> "ROLE_USER".equals(role.getName()))
+                        .findFirst()
+                        .orElseThrow(() -> new ApiException(
+                                "Role 'ROLE_USER' not found",
+                                HttpStatus.NOT_FOUND,
+                                ErrorCode.USER_ROLE_ASSIGNMENT_FAILED.toString()
+                        ));
+
+                // Étape 3 - Attribution du rôle
+                keycloakService.addUserRolesClient(
+                        dtoSave.getKeycloakUserData().getKeycloakId(),
+                        List.of(userRole)
+                );
+
 
             } catch (Exception e) {
                 // Supprimer dans Keycloak si l'ajout de rôle échoue

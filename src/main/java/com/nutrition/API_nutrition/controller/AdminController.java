@@ -3,7 +3,6 @@ package com.nutrition.API_nutrition.controller;
 import com.nutrition.API_nutrition.model.response.GenericApiErrorResponse;
 import com.nutrition.API_nutrition.model.response.GenericApiResponse;
 import com.nutrition.API_nutrition.service.KeycloakService;
-import com.nutrition.API_nutrition.service.UserService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.media.Content;
 import io.swagger.v3.oas.annotations.media.Schema;
@@ -46,9 +45,7 @@ public class AdminController {
     public static final String REMOVE_REALM_ROLE_FROM_USER = "/users/{userId}/roles/realm";
     public static final String REMOVE_CLIENT_ROLE_FROM_USER = "/users/{userId}/roles/client";
 
-
     private final KeycloakService keycloakService;
-    private final UserService userService;
 
     @Tag(name = "Rôles",
             description = "Opérations liées à la récupération des rôles disponibles dans le realm"
@@ -228,10 +225,10 @@ public class AdminController {
         this.keycloakService.addUserRolesClient(userId, roleRepresentations);
 
         return ResponseEntity
-                .status(HttpStatus.OK)
+                .status(HttpStatus.NO_CONTENT)
                 .body(new GenericApiResponse<>(
-                        HttpStatus.OK,
-                        HttpStatus.OK.value(),
+                        HttpStatus.NO_CONTENT,
+                        HttpStatus.NO_CONTENT.value(),
                         "The client roles have been successfully assigned to the user.",
                         BASE_ADMIN + ADD_CLIENT_ROLE_TO_USER,
                         null
@@ -244,7 +241,7 @@ public class AdminController {
             description = "Supprime un ou plusieurs rôles Realm d’un utilisateur spécifique dans Keycloak."
     )
     @ApiResponses(value = {
-            @ApiResponse(responseCode = "200", description = "Les rôles ont été correctement supprimés.",
+            @ApiResponse(responseCode = "204", description = "Les rôles ont été correctement supprimés.",
                     content = @Content(schema = @Schema(implementation = GenericApiResponse.class))),
             @ApiResponse(responseCode = "400", description = "Requête invalide : ID utilisateur ou liste des rôles manquants ou invalides.",
                     content = @Content(schema = @Schema(implementation = GenericApiErrorResponse.class))),
@@ -275,10 +272,10 @@ public class AdminController {
         this.keycloakService.removeRealmRoleFromUser(userId, roleRepresentations);
 
         return ResponseEntity
-                .status(HttpStatus.OK)
+                .status(HttpStatus.NO_CONTENT)
                 .body(new GenericApiResponse<Void>(
-                        HttpStatus.OK,
-                        HttpStatus.OK.value(),
+                        HttpStatus.NO_CONTENT,
+                        HttpStatus.NO_CONTENT.value(),
                         "The user was Successfully create",
                         BASE_ADMIN + REMOVE_REALM_ROLE_FROM_USER,
                         null
@@ -292,7 +289,7 @@ public class AdminController {
             description = "Retire un ou plusieurs rôles client attribués à un utilisateur spécifique dans Keycloak."
     )
     @ApiResponses(value = {
-            @ApiResponse(responseCode = "200",
+            @ApiResponse(responseCode = "204",
                     description = "Les rôles ont été correctement supprimés.",
                     content = @Content(schema = @Schema(implementation = GenericApiResponse.class))),
             @ApiResponse(responseCode = "400",
@@ -329,10 +326,10 @@ public class AdminController {
         this.keycloakService.removeClientRoleFromUser(userId, roleRepresentations);
 
         return ResponseEntity
-                .status(HttpStatus.OK)
+                .status(HttpStatus.NO_CONTENT)
                 .body(new GenericApiResponse<Void>(
-                        HttpStatus.OK,
-                        HttpStatus.OK.value(),
+                        HttpStatus.NO_CONTENT,
+                        HttpStatus.NO_CONTENT.value(),
                         "The user was Successfully create",
                         BASE_ADMIN + REMOVE_CLIENT_ROLE_FROM_USER,
                         null
@@ -356,7 +353,7 @@ public class AdminController {
      * @return un {@link Optional} contenant une {@link ResponseEntity} en cas d'erreur de validation,
      * ou un {@link Optional#empty()} si tout est valide.
      */
-    private Optional<ResponseEntity<GenericApiResponse<Void>>> validateUserIdAndRoles(
+    protected Optional<ResponseEntity<GenericApiResponse<Void>>> validateUserIdAndRoles(
             String userId, List<RoleRepresentation> roleRepresentations
     ) {
         if (roleRepresentations == null || roleRepresentations.isEmpty()) {

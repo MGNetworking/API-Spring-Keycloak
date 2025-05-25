@@ -74,7 +74,7 @@ Security is managed through the `SecurityConfig` class, with the following featu
 |------------------------|---------|--------------------------|-------------|-----------------------------------|
 | /api/v1/users/register | POST    | Création d'utilisateur   | PUBLIC      | 201, 400, 401, 403, 409, 500      |
 | /api/v1/users/user     | PUT     | Mise à jour utilisateur  | ROLE_USER   | 200, 400, 401, 403, 404, 500      |
-| /api/v1/users/{id}     | DELETE  | Suppression utilisateur  | ROLE_ADMIN  | 204, 400, 401, 403, 404, 409, 500 |
+| /api/v1/users/{id}     | DELETE  | Suppression utilisateur  | ROLE_USER   | 204, 400, 401, 403, 404, 409, 500 |
 | /api/v1/users/{id}     | GET     | Récupération utilisateur | ROLE_USER   | 200, 400, 401, 403, 404, 500      |
 
 📝 Description:
@@ -86,11 +86,11 @@ Each action is protected by appropriate role-based access control (`ROLE_USER`, 
 
 * class : AuthController
 
-| Endpoint             | Méthode | Description            | Rôle Requis | Codes Réponse                |
-|----------------------|---------|------------------------|-------------|------------------------------|
-| /api/v1/auth/login   | POST    | Connexion (JWT)        | PUBLIC      | 200, 400, 401, 403, 404, 500 |
-| /api/v1/auth/logout  | POST    | Déconnexion            | ROLE_USER   | 200, 400, 401, 403, 404, 500 |
-| /api/v1/auth/refresh | POST    | Rafraîchissement token | ROLE_USER   | 200, 400, 401, 403, 404, 500 |
+| Endpoint             | Méthode | Description            | Rôle Requis  | Codes Réponse                |
+|----------------------|---------|------------------------|--------------|------------------------------|
+| /api/v1/auth/login   | POST    | Connexion (JWT)        | PUBLIC (all) | 200, 400, 401, 403, 404, 500 |
+| /api/v1/auth/logout  | POST    | Déconnexion            | ROLE_USER    | 200, 400, 401, 403, 404, 500 |
+| /api/v1/auth/refresh | POST    | Rafraîchissement token | ROLE_USER    | 200, 400, 401, 403, 404, 500 |
 
 📝 Description:
 
@@ -104,13 +104,14 @@ This controller handles authentication using Keycloak.
 
 * class : AdminController
 
-| Endpoint                           | Méthode | Description                                    | Rôle Requis | Codes Réponse                     |
-|------------------------------------|---------|------------------------------------------------|-------------|-----------------------------------|
-| /api/v1/admin/users                | GET     | Liste tous les utilisateurs                    | ROLE_ADMIN  | 200, 401, 403, 500                |
-| /api/v1/admin/users/{id}           | PUT     | Modification admin utilisateur                 | ROLE_ADMIN  | 200, 400, 401, 403, 404, 500      |
-| /api/v1/admin/users/roles          | PUT     | Modifier les rôles d’un utilisateur            | ROLE_ADMIN  | 200, 400, 401, 403, 404, 409, 500 |
-| /api/v1/admin/users/enable         | PUT     | Activer ou désactiver un utilisateur           | ROLE_ADMIN  | 200, 400, 401, 403, 404, 409, 500 |
-| /api/v1/admin/users/reset-password | PUT     | Réinitialiser le mot de passe d’un utilisateur | ROLE_ADMIN  | 200, 400, 401, 403, 404, 409, 500 |
+| Endpoint                                  | Méthode | Description                                                              | Rôle Requis | Codes Réponse                |
+|-------------------------------------------|---------|--------------------------------------------------------------------------|-------------|------------------------------|
+| /api/v1/admin/roles/realm                 | GET     | Opérations liées à la récupération des rôles disponibles dans le realm   | ROLE_ADMIN  | 200, 401, 403,  500          |
+| /api/v1/admin/roles/client                | GET     | Opérations liées à la récupération des rôles d’un client Keycloak        | ROLE_ADMIN  | 200, 401, 403,  500          |
+| /api/v1/admin/users/{userId}/roles/realm  | POST    | Opérations d'ajout de rôles à un utilisateur dans le realm               | ROLE_ADMIN  | 204, 400, 401, 403, 404, 500 |
+| /api/v1/admin/users/{userId}/roles/client | POST    | Opérations d'ajout de rôles à un utilisateur dans une sous domain client | ROLE_ADMIN  | 204, 400, 401, 403, 404, 500 |
+| /api/v1/admin/deleteRoleRealm             | DELETE  | Supprime des rôles Realm à un utilisateur                                | ROLE_ADMIN  | 204, 400, 401, 403, 404, 500 |
+| /api/v1/admin/deleteRoleClient            | DELETE  | Supprime des rôles client d’un utilisateur                               | ROLE_ADMIN  | 204, 400, 401, 403, 404, 500 |
 
 📝 Description:
 

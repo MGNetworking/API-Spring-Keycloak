@@ -71,7 +71,7 @@ public class AdminController {
                     description = "Erreur technique inattendue",
                     content = @Content(schema = @Schema(implementation = GenericApiErrorResponse.class))),
     })
-    @PostMapping(value = GET_REALM_ROLES)
+    @GetMapping(value = GET_REALM_ROLES)
     @PreAuthorize("@accessKeycloak.isAuthenticatedAndAuthorized(#userDto.keycloakId)")
     public ResponseEntity<GenericApiResponse<List<RoleRepresentation>>> getListRolesRealm() {
 
@@ -110,7 +110,7 @@ public class AdminController {
                     description = "Erreur technique inattendue",
                     content = @Content(schema = @Schema(implementation = GenericApiErrorResponse.class)))
     })
-    @PostMapping(value = GET_CLIENT_ROLES)
+    @GetMapping(value = GET_CLIENT_ROLES)
     @PreAuthorize("@accessKeycloak.isAuthenticatedAndAuthorized(#userDto.keycloakId)")
     public ResponseEntity<GenericApiResponse<List<RoleRepresentation>>> getListRolesClient() {
 
@@ -184,7 +184,8 @@ public class AdminController {
     }
 
 
-    @Tag(name = "Assignation de rôles client")
+    @Tag(name = "Assignation de rôles client",
+            description = "Opérations d'ajout de rôles à un utilisateur dans une sous domain client")
     @Operation(
             summary = "Ajoute des rôles client à un utilisateur",
             description = "Assigne une ou plusieurs rôles client à un utilisateur spécifique dans Keycloak."
@@ -256,7 +257,7 @@ public class AdminController {
             @ApiResponse(responseCode = "500", description = "Erreur technique inattendue",
                     content = @Content(schema = @Schema(implementation = GenericApiErrorResponse.class))),
     })
-    @PostMapping(value = REMOVE_REALM_ROLE_FROM_USER)
+    @DeleteMapping(value = REMOVE_REALM_ROLE_FROM_USER)
     @PreAuthorize("@accessKeycloak.isAuthenticatedAndAuthorized(#userDto.keycloakId)")
     public ResponseEntity<GenericApiResponse<Void>> deleteRoleRealm(
             @PathVariable String userId,
@@ -310,7 +311,7 @@ public class AdminController {
                     description = "Erreur technique inattendue",
                     content = @Content(schema = @Schema(implementation = GenericApiErrorResponse.class))),
     })
-    @PostMapping(value = REMOVE_CLIENT_ROLE_FROM_USER)
+    @DeleteMapping(value = REMOVE_CLIENT_ROLE_FROM_USER)
     @PreAuthorize("@accessKeycloak.isAuthenticatedAndAuthorized(#userDto.keycloakId)")
     public ResponseEntity<GenericApiResponse<Void>> deleteRoleClient(
             @PathVariable String userId,

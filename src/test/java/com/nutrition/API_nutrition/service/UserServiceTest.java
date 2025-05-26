@@ -70,6 +70,7 @@ class UserServiceTest {
                 "ROLE_USER", "Role user test", true);
 
         doNothing().when(keycloakService).createUser(any());
+        when(keycloakService.getClientScopedRoles()).thenReturn(List.of(roleUser));
         doNothing().when(keycloakService).addUserRolesClient(
                 this.dto.getKeycloakUserData().getKeycloakId(), List.of(roleUser));
 

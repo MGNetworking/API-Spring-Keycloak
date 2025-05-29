@@ -215,12 +215,31 @@ public class KeycloakService {
 
         try {
 
+            if (roleRepresentations == null || roleRepresentations.isEmpty()) {
+                throw new ApiException("No roles to assign",
+                        HttpStatus.BAD_REQUEST,
+                        ErrorCode.USER_ROLE_ASSIGNMENT_FAILED.toString());
+            }
+
+            List<ClientRepresentation> clients = getKc().realm(getRealm())
+                    .clients()
+                    .findByClientId(this.keycloakProvider.getClientId());
+
+            if (clients.isEmpty()) {
+                throw new ApiException("Client not found: " + this.keycloakProvider.getClientId(),
+                        HttpStatus.BAD_REQUEST,
+                        ErrorCode.USER_ROLE_ASSIGNMENT_FAILED.toString());
+            }
+
+            String clientUuid = clients.get(0).getId();
+            log.debug("Client UUID retrieved for clientId '{}': {}", this.keycloakProvider.getClientId(), clientUuid);
+
             // Assigner des rôles à un utilisateur pour un client spécifique
             getKc().realm(getRealm())
                     .users()
                     .get(userId)
                     .roles()
-                    .clientLevel(userId)
+                    .clientLevel(clientUuid)
                     .add(roleRepresentations);
 
         } catch (WebApplicationException e) {
@@ -237,6 +256,8 @@ public class KeycloakService {
                     ErrorCode.USER_ROLE_ASSIGNMENT_FAILED.toString()
             );
 
+        } catch (ApiException e) {
+            throw e;
         } catch (Exception e) {
             log.error("An unexpected error has occurred : {}", e.getMessage(), e);
             throw new ApiException(
@@ -280,6 +301,7 @@ public class KeycloakService {
 
     /**
      * Delete role Realm
+     *
      * @param userId
      * @param roleRepresentations
      */
@@ -295,6 +317,7 @@ public class KeycloakService {
 
     /**
      * Delete role client
+     *
      * @param userId
      * @param roleRepresentations
      */
@@ -345,7 +368,8 @@ public class KeycloakService {
                     "&client_secret=" + this.keycloakProvider.getClientSecret() +
                     "&grant_type=password" +
                     "&username=" + URLEncoder.encode(username, StandardCharsets.UTF_8) +
-                    "&password=" + URLEncoder.encode(password, StandardCharsets.UTF_8);
+                    "&password=" + URLEncoder.encode(password, StandardCharsets.UTF_8) +
+                    "&scope=openid";
 
             log.info("Token Url : {}", tokenUrl);
             HttpRequest request = this.httpClientConfig.postRequest(tokenUrl, header, body);
@@ -360,7 +384,7 @@ public class KeycloakService {
                 log.error("Authentication failed for user '{}'. Status: {}, Response: {}",
                         username, response.statusCode(), response.body());
 
-                String errorMessage = "Authentication failed with Keycloak. Reason: %s".formatted(response.body());
+                String errorMessage = " Authentication failed with Keycloak.";
                 switch (response.statusCode()) {
                     case 400 -> throw new ApiException(
                             errorMessage,
@@ -368,12 +392,17 @@ public class KeycloakService {
                             ErrorCode.KEYCLOAK_BAD_REQUEST.toString()
                     );
                     case 401 -> throw new ApiException(
-                            "Invalid credentials. " + errorMessage,
+                            "Invalid credentials." + errorMessage,
                             HttpStatus.UNAUTHORIZED,
                             ErrorCode.KEYCLOAK_UNAUTHORIZED.toString()
                     );
                     case 403 -> throw new ApiException(
-                            "Access forbidden. " + errorMessage,
+                            "Access forbidden." + errorMessage,
+                            HttpStatus.FORBIDDEN,
+                            ErrorCode.KEYCLOAK_FORBIDDEN.toString()
+                    );
+                    case 404 -> throw new ApiException(
+                            "User not exist." + errorMessage,
                             HttpStatus.FORBIDDEN,
                             ErrorCode.KEYCLOAK_FORBIDDEN.toString()
                     );
@@ -518,7 +547,7 @@ public class KeycloakService {
                 log.error("Refresh token failed Status: {}, Response: {}",
                         response.statusCode(), response.body());
 
-                String errorMessage = "Refresh token failed. Reason: %s".formatted(response.body());
+                String errorMessage = "Refresh token failed";
                 switch (response.statusCode()) {
                     case 400 -> throw new ApiException(
                             errorMessage,
@@ -552,42 +581,14 @@ public class KeycloakService {
                     node.get("expires_in").asLong(),
                     node.get("refresh_expires_in").asLong()
             );
-        } catch (Exception e) {
+        } catch (ApiException e) {
+            throw e;
+        }catch (Exception e) {
             throw new ApiException(
                     "A technical error has occurred during the token refresh process",
                     HttpStatus.INTERNAL_SERVER_ERROR,
                     ErrorCode.TECHNICAL_ERROR.toString()
             );
-        }
-    }
-
-    /**
-     * Valide un token d'accès auprès du serveur d'authentification Keycloak.
-     *
-     * <p>Cette méthode envoie une requête HTTP GET à endpoint `userinfo` de Keycloak pour vérifier la validité du token d'accès fourni.
-     * Si le serveur répond avec un code de statut HTTP 200, cela signifie que le token est valide.
-     *
-     * <p>En cas d'erreur (par exemple, si le token est invalide, expiré, ou si un problème réseau survient),
-     * la méthode retourne `false`. Si la validation réussit, elle retourne `true`.
-     *
-     * @param token le token d'accès à valider.
-     * @return {@code true} si le token est valide, {@code false} sinon.
-     */
-    public boolean validateToken(String token) {
-        try {
-
-            String tokenUrl = this.keycloakProvider.getAuthServerUrl() +
-                    "/realms/" +
-                    this.keycloakProvider.getRealm() +
-                    "/protocol/openid-connect/userinfo";
-
-            String header = "Bearer " + token;
-            HttpRequest request = this.httpClientConfig.getRequest(tokenUrl, header);
-            HttpResponse<String> response = this.httpClient.send(request, HttpResponse.BodyHandlers.ofString());
-
-            return response.statusCode() == 200;
-        } catch (Exception e) {
-            return false;
         }
     }
 
@@ -684,8 +685,13 @@ public class KeycloakService {
                                 dto.getKeycloakUserData().getLastName(),
                                 dto.getKeycloakUserData().getEmail(), null, null);
 
-                log.info("User first list {}", listUser.get(0));
-                this.displayList(listUser);
+                if (listUser.isEmpty()) {
+                    log.info("No user found for the search criteria.");
+                } else {
+                    log.info("User first list {}", listUser.get(0));
+                    this.displayList(listUser);
+                }
+
 
                 Optional<UserRepresentation> lsUserRep = listUser.stream()
                         .filter(userRepresentation -> {
@@ -701,10 +707,10 @@ public class KeycloakService {
             }
 
         } catch (NotFoundException e) {
-            log.error("Error user not Found {}", dto.getKeycloakUserData().getKeycloakId(), e);
+            log.error("Error user not Found, ID Keycloak: {}", dto.getKeycloakUserData().getKeycloakId(), e);
             return false;
         } catch (Exception e) {
-            log.error("Unexpected error {}", dto.getKeycloakUserData().getKeycloakId(), e);
+            log.error("Unexpected error, ID Keycloak: {}", dto.getKeycloakUserData().getKeycloakId(), e);
             return false;
         }
 

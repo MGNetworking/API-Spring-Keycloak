@@ -55,6 +55,8 @@ public class AuthController {
                     content = @Content(schema = @Schema(implementation = GenericApiErrorResponse.class))),
             @ApiResponse(responseCode = "403", description = "Accès refusé : l'utilisateur n'a pas les droits nécessaires.",
                     content = @Content(schema = @Schema(implementation = GenericApiErrorResponse.class))),
+            @ApiResponse(responseCode = "403", description = "Accès refusé : L'utilisateur n'existe pas",
+                    content = @Content(schema = @Schema(implementation = GenericApiErrorResponse.class))),
             @ApiResponse(responseCode = "500", description = "Erreur interne du serveur : une exception technique est survenue.",
                     content = @Content(schema = @Schema(implementation = GenericApiErrorResponse.class)))
     })
@@ -67,7 +69,7 @@ public class AuthController {
                 .body(new GenericApiResponse<ApiResponseData>(
                         HttpStatus.OK,
                         HttpStatus.OK.value(),
-                        "User not exist, Update is impossible",
+                        "User authenticated successfully.",
                         BASE_AUTH + LOGIN,
                         this.keycloakService.login(
                                 dto.getUserName(),
@@ -97,7 +99,6 @@ public class AuthController {
                     content = @Content(schema = @Schema(implementation = GenericApiErrorResponse.class)))
     })
     @PostMapping(value = LOGOUT)
-    @PreAuthorize("@accessKeycloak.isTokenValid()")
     public ResponseEntity<GenericApiResponse<String>> logout() {
 
         this.keycloakService.logout(this.accessKeycloak.getUserIdFromToken());
@@ -133,13 +134,10 @@ public class AuthController {
             @ApiResponse(responseCode = "500", description = "Erreur technique inattendue",
                     content = @Content(schema = @Schema(implementation = GenericApiErrorResponse.class)))
     })
-    @PreAuthorize("@accessKeycloak.isTokenValid()")
     @PostMapping(value = REFRESH)
     public ResponseEntity<GenericApiResponse<TokenResponseDto>> refresh(
-            @RequestHeader("Authorization") String authHeader
+            @RequestHeader("refresh_token") String authHeader
     ) {
-
-        String token = this.accessKeycloak.extractToken(authHeader);
 
         return ResponseEntity
                 .status(HttpStatus.OK)
@@ -148,7 +146,7 @@ public class AuthController {
                         HttpStatus.OK.value(),
                         "User not exist, Update is impossible",
                         BASE_AUTH + LOGIN,
-                        this.keycloakService.refreshToken(token))
+                        this.keycloakService.refreshToken(authHeader))
                 );
 
     }

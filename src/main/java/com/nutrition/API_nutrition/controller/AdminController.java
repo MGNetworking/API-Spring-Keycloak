@@ -69,7 +69,7 @@ public class AdminController {
                     content = @Content(schema = @Schema(implementation = GenericApiErrorResponse.class))),
     })
     @GetMapping(value = GET_REALM_ROLES)
-    @PreAuthorize("@accessKeycloak.isAuthenticatedAndAuthorized(#userDto.keycloakId)")
+    @PreAuthorize("@accessKeycloak.hasAccessToUser(#userDto.keycloakId)")
     public ResponseEntity<GenericApiResponse<List<RoleRepresentation>>> getListRolesRealm() {
 
         return ResponseEntity
@@ -108,7 +108,7 @@ public class AdminController {
                     content = @Content(schema = @Schema(implementation = GenericApiErrorResponse.class)))
     })
     @GetMapping(value = GET_CLIENT_ROLES)
-    @PreAuthorize("@accessKeycloak.isAuthenticatedAndAuthorized(#userDto.keycloakId)")
+    @PreAuthorize("@accessKeycloak.hasAccessToUser(#userDto.keycloakId)")
     public ResponseEntity<GenericApiResponse<List<RoleRepresentation>>> getListRolesClient() {
 
         return ResponseEntity
@@ -151,7 +151,7 @@ public class AdminController {
                     content = @Content(schema = @Schema(implementation = GenericApiErrorResponse.class)))
     })
     @PostMapping(value = ADD_REALM_ROLE_TO_USER)
-    @PreAuthorize("@accessKeycloak.isAuthenticatedAndAuthorized(#userDto.keycloakId)")
+    @PreAuthorize("@accessKeycloak.hasAccessToUser(#userDto.keycloakId)")
     public ResponseEntity<GenericApiResponse<Void>> addUserRolesRealm(
             @PathVariable String userId,
             @RequestBody List<RoleRepresentation> roleRepresentations
@@ -208,7 +208,7 @@ public class AdminController {
                     content = @Content(schema = @Schema(implementation = GenericApiErrorResponse.class))),
     })
     @PostMapping(value = ADD_CLIENT_ROLE_TO_USER)
-    @PreAuthorize("@accessKeycloak.isAuthenticatedAndAuthorized(#userDto.keycloakId)")
+    @PreAuthorize("@accessKeycloak.hasAccessToUser(#userDto.keycloakId)")
     public ResponseEntity<GenericApiResponse<Void>> addUserRolesClient(
             @PathVariable String userId,
             @RequestBody List<RoleRepresentation> roleRepresentations
@@ -255,7 +255,7 @@ public class AdminController {
                     content = @Content(schema = @Schema(implementation = GenericApiErrorResponse.class))),
     })
     @DeleteMapping(value = REMOVE_REALM_ROLE_FROM_USER)
-    @PreAuthorize("@accessKeycloak.isAuthenticatedAndAuthorized(#userDto.keycloakId)")
+    @PreAuthorize("@accessKeycloak.hasAccessToUser(#userDto.keycloakId)")
     public ResponseEntity<GenericApiResponse<Void>> deleteRoleRealm(
             @PathVariable String userId,
             @RequestBody List<RoleRepresentation> roleRepresentations
@@ -309,7 +309,7 @@ public class AdminController {
                     content = @Content(schema = @Schema(implementation = GenericApiErrorResponse.class))),
     })
     @DeleteMapping(value = REMOVE_CLIENT_ROLE_FROM_USER)
-    @PreAuthorize("@accessKeycloak.isAuthenticatedAndAuthorized(#userDto.keycloakId)")
+    @PreAuthorize("@accessKeycloak.hasAccessToUser(#userDto.keycloakId)")
     public ResponseEntity<GenericApiResponse<Void>> deleteRoleClient(
             @PathVariable String userId,
             @RequestBody List<RoleRepresentation> roleRepresentations

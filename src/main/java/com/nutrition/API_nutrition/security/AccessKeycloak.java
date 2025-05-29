@@ -19,7 +19,6 @@ import java.util.Optional;
 @RequiredArgsConstructor
 public class AccessKeycloak {
 
-    private final KeycloakService keycloakService;
     private final List<UserIdentifyResolver> lsResolvers;
 
     /**
@@ -41,43 +40,6 @@ public class AccessKeycloak {
         log.warn("Access denied: ID does not match.");
         return false;
 
-    }
-
-    /**
-     * Appel vers Keycloak, demande de validation.
-     *
-     * @return {@code true} si le token est valide, {@code false} sinon
-     */
-    public boolean isTokenValid() {
-
-        Authentication authentication = SecurityContextHolder
-                .getContext()
-                .getAuthentication();
-
-        if (authentication == null || !(authentication.getPrincipal() instanceof Jwt)) {
-            log.warn("Authentication is null or not instance Jwt: {}", authentication);
-            return false;
-        }
-
-        log.info("Authentication principal: {}", authentication.getPrincipal());
-
-        Jwt jwt = (Jwt) authentication.getPrincipal();
-        String token = jwt.getTokenValue();
-
-
-        log.info("serialization of the jwt token {}", token);
-        return this.keycloakService.validateToken(token);
-
-    }
-
-    /**
-     * Permet de verifier l'identité utilisateur ainsi que la validité du token
-     *
-     * @param userId l'identifiant utilisateur
-     * @return {@code true} si l'identité et token est valide, {@code false} sinon
-     */
-    public boolean isAuthenticatedAndAuthorized(String userId) {
-        return hasAccessToUser(userId) && isTokenValid();
     }
 
 

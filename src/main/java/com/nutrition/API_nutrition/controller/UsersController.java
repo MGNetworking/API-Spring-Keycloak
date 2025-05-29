@@ -197,7 +197,7 @@ public class UsersController {
                     content = @Content(schema = @Schema(implementation = GenericApiErrorResponse.class)))
     })
     @PutMapping(value = UPDATE_USER)
-    @PreAuthorize("@accessKeycloak.isAuthenticatedAndAuthorized(#userDto.keycloakId)")
+    @PreAuthorize("@accessKeycloak.hasAccessToUser(#userDto.keycloakId)")
     public ResponseEntity<GenericApiResponse<ApiResponseData>> updateUser(
             @Valid @RequestBody RegisterRequestDto userDto,
             @RequestHeader("Authorization") String authHeader) {
@@ -306,7 +306,7 @@ public class UsersController {
                     content = @Content(schema = @Schema(implementation = GenericApiErrorResponse.class)))
     })
     @DeleteMapping(value = DELETE_USER)
-    @PreAuthorize("@accessKeycloak.isAuthenticatedAndAuthorized(#userId)")
+    @PreAuthorize("@accessKeycloak.hasAccessToUser(#userId)")
     public ResponseEntity<GenericApiResponse<String>> deleteUser(@PathVariable String userId) {
 
         RegisterRequestDto dto = new RegisterRequestDto();

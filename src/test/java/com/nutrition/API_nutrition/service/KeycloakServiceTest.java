@@ -792,61 +792,6 @@ class KeycloakServiceTest {
     }
 
     @Test
-    @DisplayName("Devrait valider le token avec succès")
-    void validateToken_shouldValidateTokenSuccessfully() throws IOException, InterruptedException {
-        // Arrange
-        String token = "valid-token";
-
-        HttpResponse<String> response = mock(HttpResponse.class);
-        HttpRequest request = mock(HttpRequest.class);
-
-        when(this.httpClientConfig.getRequest(anyString(), anyString()))
-                .thenReturn(request);
-        when(this.httpClient.send(any(HttpRequest.class), any(HttpResponse.BodyHandler.class)))
-                .thenReturn(response);
-
-        when(response.statusCode()).thenReturn(HttpStatus.OK.value());
-
-        // Act
-        boolean result = keycloakService.validateToken(token);
-
-        // Assert
-        assertTrue(result);
-
-        // Vérifier que les méthodes appropriées ont été appelées
-        verify(httpClientConfig)
-                .getRequest(anyString(), contains("Bearer " + token));
-        verify(httpClient, times(1))
-                .send(any(HttpRequest.class), any(HttpResponse.BodyHandler.class));
-    }
-
-    @Test
-    @DisplayName("Devrait échouer lors de la validation du token")
-    void validateToken_shouldFailToValidateToken() throws IOException, InterruptedException {
-        // Arrange
-        String token = "invalid-token";
-
-        HttpRequest request = mock(HttpRequest.class);
-        HttpResponse<String> response = mock(HttpResponse.class);
-
-        when(this.httpClientConfig.getRequest(anyString(), anyString())).thenReturn(request);
-        when(response.statusCode()).thenReturn(HttpStatus.UNAUTHORIZED.value());
-        when(httpClient.send(any(HttpRequest.class), any(HttpResponse.BodyHandler.class))).thenReturn(response);
-
-        // Act
-        boolean result = keycloakService.validateToken(token);
-
-        // Assert
-        assertFalse(result);
-
-        // Vérifier que les méthodes appropriées ont été appelées
-        verify(httpClientConfig, times(1))
-                .getRequest(anyString(), anyString());
-        verify(httpClient, times(1))
-                .send(any(HttpRequest.class), any(HttpResponse.BodyHandler.class));
-    }
-
-    @Test
     @DisplayName("Devrait afficher la list ")
     void displayList_shouldByDisplayList_Successfully() {
         this.keycloakService.displayList(List.of("admin", "user"));

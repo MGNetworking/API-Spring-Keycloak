@@ -199,7 +199,6 @@ class AuthControllerTest {
     void logout_shouldBeLogoutUser() throws Exception {
 
         // Arrange
-        when(this.accessKeycloak.isTokenValid()).thenReturn(true);
         when(this.accessKeycloak.getUserIdFromToken()).thenReturn("fake-user-Id-token");
         doNothing().when(this.keycloakService).logout(any());
 
@@ -217,7 +216,6 @@ class AuthControllerTest {
     void logout_shouldBeNotLogoutUserApiException400() throws Exception {
 
         // Arrange
-        when(this.accessKeycloak.isTokenValid()).thenReturn(true);
         when(this.accessKeycloak.getUserIdFromToken()).thenReturn("fake-user-Id-token");
 
         doThrow(new ApiException("Error message",

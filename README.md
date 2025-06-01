@@ -26,8 +26,16 @@ you need a running Keycloak
 
 Launch of Spring without profile
 
+* Linux :
+
+````shell
+./mvnw spring-boot:run test -Dspring.profiles.active=test
+````
+
+* Windows :
+
 ````bash
-./mvnw spring-boot:run
+./mvnw spring-boot:run test -D spring.profiles.active=test
 ````
 
 ## Run test
@@ -49,7 +57,7 @@ Launching unit tests with profile.
 Access browser:
 
 * [Database H2 Access IP](http://localhost:8080/h2-console)
-* [Doc Swagger IP](#http://localhost:8080/swagger-ui/index.html")
+* [Doc Swagger IP](http://localhost:8080/swagger-ui/index.html)
 
 Database H2 password: ``password``
 

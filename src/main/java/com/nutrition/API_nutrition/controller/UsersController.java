@@ -103,6 +103,7 @@ public class UsersController {
     })
     @PostMapping(value = REGISTER)
     @Validated(OnCreateOrUpdateUser.class)
+    @PreAuthorize("@accessKeycloak.hasAccessToUser(#userDto.KeycloakUserData.keycloakId)")
     public ResponseEntity<GenericApiResponse<ApiResponseData>> postUser(@Valid @RequestBody RegisterRequestDto userDto) {
 
         if (this.keycloakService.checkUserExist(userDto)) {
@@ -119,9 +120,6 @@ public class UsersController {
 
         // Créer un user
         UserResponseDto userResponseDto = this.userService.createUser(userDto);
-        TokenResponseDto token = keycloakService.login(
-                userDto.getKeycloakUserData().getUserName(),
-                userDto.getKeycloakUserData().getPassword());
 
         return ResponseEntity
                 .status(HttpStatus.CREATED)
@@ -130,9 +128,7 @@ public class UsersController {
                         HttpStatus.CREATED.value(),
                         "The user was Successfully create",
                         BASE_USERS + REGISTER,
-                        new ResponsUserTokenDto(
-                                userResponseDto,
-                                token)
+                        userResponseDto
                 ));
     }
 
@@ -353,7 +349,7 @@ public class UsersController {
      * @param userId L'identifiant unique de l'utilisateur (Keycloak ID).
      * @return Une {@link ResponseEntity} contenant un {@link GenericApiResponse} avec :
      * <ul>
-     *     <li>HTTP 200 si L'utilisateur à était trouver avec succès</li>
+     *     <li>HTTP 200 si L'utilisateur à était trouvé avec succès</li>
      *     <li>HTTP 400 si la suppression est invalide.</li>
      *     <li>HTTP 401 si les informations d'identification invalides</li>
      *     <li>HTTP 403 si l'accès interdit.</li>

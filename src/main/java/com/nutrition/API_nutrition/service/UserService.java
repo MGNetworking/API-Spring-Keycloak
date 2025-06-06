@@ -49,52 +49,6 @@ public class UserService {
 
         try {
 
-            // Étape 1 - Créer l'utilisateur dans Keycloak
-            this.keycloakService.createUser(dtoSave);
-
-            try {
-
-                // Étape 2 - Récupération des rôles disponibles
-                List<RoleRepresentation> availableRoles = keycloakService.getClientScopedRoles();
-
-                // Recherche du rôle "ROLE_USER"
-                RoleRepresentation userRole = availableRoles.stream()
-                        .filter(role -> "ROLE_USER".equals(role.getName()))
-                        .findFirst()
-                        .orElseThrow(() -> new ApiException(
-                                "Role 'ROLE_USER' not found",
-                                HttpStatus.NOT_FOUND,
-                                ErrorCode.USER_ROLE_ASSIGNMENT_FAILED.toString()
-                        ));
-
-                // Étape 3 - Attribution du rôle
-                keycloakService.addUserRolesClient(
-                        dtoSave.getKeycloakUserData().getKeycloakId(),
-                        List.of(userRole)
-                );
-
-
-            } catch (Exception e) {
-                // Supprimer dans Keycloak si l'ajout de rôle échoue
-                log.warn("Role assignment failed, user Keycloak deleted: {}", e.getMessage(), e);
-                boolean status = keycloakService.removeUser(dtoSave.getKeycloakUserData().getKeycloakId());
-
-                if (status) {
-                    throw new ApiException(
-                            "Failed to assign roles",
-                            HttpStatus.BAD_REQUEST,
-                            ErrorCode.USER_ROLE_ASSIGNMENT_FAILED.toString()
-                    );
-                } else {
-                    throw new ApiException(
-                            "Failed to assign roles and rollback in keycloak is was unsuccessful",
-                            HttpStatus.BAD_REQUEST,
-                            ErrorCode.USER_ROLE_ASSIGNMENT_FAILED.toString()
-                    );
-                }
-
-            }
-
             User updateUser = this.userRepository.save(dtoSave.UserMapping());
             userRepository.flush();
             return new UserResponseDto().mappingToUser(updateUser);

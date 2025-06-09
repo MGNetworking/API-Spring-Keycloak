@@ -4,18 +4,17 @@ package com.nutrition.API_nutrition.exception;
  * Permet de centraliser les codes erreurs retourné au client
  */
 public enum ErrorCode {
-    USER_CREATION_FAILED,
-    USER_RESEARCH_FAILED,
-    USER_UPDATE_FAILED,
+    INVALID_USER_ID,
+    INVALID_USER_DATA,
     USER_ROLE_ASSIGNMENT_FAILED,
     KEYCLOAK_BAD_REQUEST,
     KEYCLOAK_UNAUTHORIZED,
     KEYCLOAK_FORBIDDEN,
-    KEYCLOAK_USER_NOT_FOUND,
-    KEYCLOAK_UNEXPECTED_ERROR,
     AUTHENTICATED_BAD_REQUEST,
-    NETWORK_ERROR, // erreur réseau
-    DB_ERROR, // Erreur en base de donnée
-    TECHNICAL_ERROR, // Exception générale
-    BAD_REQUEST_PARAMETER //
+    DB_USER_NOT_FOUND,
+    DB_SYSTEM_ERROR,
+    DB_CONSTRAINT_VIOLATION,
+    DB_ERROR,
+    TECHNICAL_ERROR,
+    BAD_REQUEST_PARAMETER
 }

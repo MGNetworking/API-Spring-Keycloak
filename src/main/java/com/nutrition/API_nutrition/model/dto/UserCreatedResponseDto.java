@@ -9,14 +9,9 @@ import lombok.NoArgsConstructor;
 @Data
 @NoArgsConstructor
 @AllArgsConstructor
-public class KeycloakLoginRequestDto {
+public class UserCreatedResponseDto implements ApiResponseData {
 
-    @Schema(description = "Username (avatar name)", required = true)
-    @NotBlank(message = "Username is required")
-    private String userName;
-
-    @Schema(description = "Password", required = true)
-    @NotBlank(message = "Password is required")
-    private String password;
+    private String userId;
+    private String message;
 
 }

@@ -1,70 +1,49 @@
 package com.nutrition.API_nutrition.controller;
 
-import com.fasterxml.jackson.databind.ObjectMapper;
-import com.nutrition.API_nutrition.model.dto.RegisterRequestDto;
-import com.nutrition.API_nutrition.model.dto.TokenResponseDto;
-import com.nutrition.API_nutrition.model.dto.UserResponseDto;
+import com.nutrition.API_nutrition.model.dto.ApiResponseData;
+import com.nutrition.API_nutrition.model.dto.UserCreatedResponseDto;
+import com.nutrition.API_nutrition.model.dto.UserInputDTO;
+import com.nutrition.API_nutrition.model.dto.UserOutputDto;
+import com.nutrition.API_nutrition.model.entity.ActivityLevel;
 import com.nutrition.API_nutrition.model.entity.Gender;
+import com.nutrition.API_nutrition.model.entity.Goal;
 import com.nutrition.API_nutrition.model.entity.User;
+import com.nutrition.API_nutrition.model.response.GenericApiResponse;
 import com.nutrition.API_nutrition.security.AccessKeycloak;
-import com.nutrition.API_nutrition.service.KeycloakService;
 import com.nutrition.API_nutrition.service.UserService;
 import org.junit.jupiter.api.BeforeEach;
-import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
-import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.boot.test.autoconfigure.web.servlet.AutoConfigureMockMvc;
-import org.springframework.boot.test.autoconfigure.web.servlet.WebMvcTest;
-import org.springframework.http.MediaType;
-import org.springframework.test.context.ActiveProfiles;
-import org.springframework.test.context.TestPropertySource;
-import org.springframework.test.context.bean.override.mockito.MockitoBean;
-import org.springframework.test.web.servlet.MockMvc;
+import org.junit.jupiter.api.extension.ExtendWith;
+import org.mockito.InjectMocks;
+import org.mockito.Mock;
+import org.mockito.junit.jupiter.MockitoExtension;
+import org.springframework.http.HttpStatus;
+import org.springframework.http.ResponseEntity;
 
 import java.time.LocalDate;
-import java.util.Optional;
+import java.util.List;
 
-import static org.mockito.ArgumentMatchers.any;
-import static org.mockito.ArgumentMatchers.anyString;
-import static org.mockito.Mockito.doNothing;
-import static org.mockito.Mockito.when;
-import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.*;
-import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
-import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
+import static org.assertj.core.api.AssertionsForClassTypes.assertThat;
+import static org.junit.jupiter.api.Assertions.*;
+import static org.mockito.Mockito.*;
 
-@WebMvcTest(UsersController.class)
-@ActiveProfiles("test")
-@AutoConfigureMockMvc(addFilters = false)
-@TestPropertySource(properties = {
-        "spring.sql.init.mode=never"
-})
+@ExtendWith(MockitoExtension.class)
 class UsersControllerTest {
 
-    @Autowired
-    private MockMvc mockMvc;
+    @InjectMocks
+    private UsersController usersController;
 
-    @Autowired
-    private ObjectMapper objectMapper;
-
-    @MockitoBean
+    @Mock
     private UserService userService;
 
-    @MockitoBean
-    private KeycloakService keycloakService;
-
-    @MockitoBean
+    @Mock
     private AccessKeycloak accessKeycloak;
 
-    RegisterRequestDto requestDto;
+    UserInputDTO requestDto;
 
     @BeforeEach
     public void setUp() {
-        this.requestDto = new RegisterRequestDto();
-        requestDto.getKeycloakUserData().setUserName("Username");
-        requestDto.getKeycloakUserData().setFirstName("Firstname");
-        requestDto.getKeycloakUserData().setLastName("Lastname");
-        requestDto.getKeycloakUserData().setPassword("new-secret");
-        requestDto.getKeycloakUserData().setEmail("newemail@example.com");
+        this.requestDto = new UserInputDTO();
         requestDto.setBirthdate(LocalDate.parse("2000-01-15"));
         requestDto.setGender(Gender.MALE);
         requestDto.setHeight((short) 180);
@@ -72,101 +51,118 @@ class UsersControllerTest {
     }
 
     @Test
-    @DisplayName("Devrait créer un utilisateur avec succès quand les données sont valides")
-    void shouldCreateUserSuccessfullyWhenDataIsValid() throws Exception {
-
+    void postUser_shouldCreateUserAndReturnCreatedResponse() {
         // Arrange
-        User user = this.requestDto.UserMapping();
-        UserResponseDto userResponse = new UserResponseDto().mappingToUser(user);
+        String mockUserId = "mock-user-id";
+        when(accessKeycloak.getUserIdFromToken()).thenReturn(mockUserId);
 
-        TokenResponseDto token = new TokenResponseDto();
-        token.setAccessToken("mocked-jwt");
+        // Act
+        ResponseEntity<GenericApiResponse<ApiResponseData>> response = usersController.postUser();
 
-        when(keycloakService.checkUserExist(any(RegisterRequestDto.class))).thenReturn(false);
-        when(userService.createUser(this.requestDto)).thenReturn(userResponse);
-        when(keycloakService.login(
-                this.requestDto.getKeycloakUserData().getUserName(),
-                this.requestDto.getKeycloakUserData().getPassword())).thenReturn(token);
+        // Assert
+        assertNotNull(response);
+        assertEquals(HttpStatus.CREATED, response.getStatusCode());
 
-        // Act & Assert
-        String uri = UsersController.BASE_USERS + UsersController.REGISTER;
-        mockMvc.perform(post(uri)
-                        .contentType(MediaType.APPLICATION_JSON)
-                        .header("Authorization", "Bearer mocked-jwt")
-                        .content(this.objectMapper.writeValueAsString(this.requestDto)))
-                .andExpect(status().isCreated())
-                .andExpect(jsonPath("$.status").value("CREATED"))
-                .andExpect(jsonPath("$.data.userResponseDto.userName").value("Username"))
-                .andExpect(jsonPath("$.data.token.accessToken").value("mocked-jwt"));
+        GenericApiResponse<ApiResponseData> body = response.getBody();
+        assertNotNull(body);
+        assertEquals(HttpStatus.CREATED, body.getStatus());
+        assertEquals(HttpStatus.CREATED.value(), body.getStatusCode());
+        assertEquals("The user was Successfully create", body.getMessage());
+        assertEquals("/api/v1/users/register", body.getPath());
+
+        assertInstanceOf(UserCreatedResponseDto.class, body.getData());
+        UserCreatedResponseDto data = (UserCreatedResponseDto) body.getData();
+        assertEquals(mockUserId, data.getUserId());
+        assertEquals("new user create", data.getMessage());
+
+        // Vérifie que la méthode createUser a bien été appelée avec le bon ID
+        verify(userService, times(1)).createUser(mockUserId);
     }
 
     @Test
-    @DisplayName("Devrait mettre à jour un utilisateur avec succès")
-    void shouldUpdateUserSuccessfully() throws Exception {
+    void deleteUser_shouldReturnNoContent_whenUserIsDeleted() {
+        // GIVEN
+        String userId = "user-123";
 
-        // Arrange
-        this.requestDto.getKeycloakUserData().setKeycloakId("keycloak-id");
-        UserResponseDto updatedUser = new UserResponseDto()
-                .mappingToUser(this.requestDto.UserMapping());
+        // WHEN
+        ResponseEntity<GenericApiResponse<String>> response = usersController.deleteUser(userId);
 
-        String authHeaderMock = "Bearer fake-token-for-testing";
-        String tokenMock = "fake-token-for-testing";
-        TokenResponseDto responseDto = new TokenResponseDto();
-        responseDto.setAccessToken(tokenMock);
+        // THEN
+        assertNotNull(response.getBody());
+        assertThat(response.getBody()).isNotNull();
 
-        // Mocks
-        when(keycloakService.checkUserExist(this.requestDto)).thenReturn(false);
-        when(userService.updateUser(this.requestDto)).thenReturn(updatedUser);
-        when(this.keycloakService.refreshToken(anyString())).thenReturn(responseDto);
-        when(accessKeycloak.extractToken(authHeaderMock)).thenReturn(tokenMock);
+        assertThat(response.getStatusCode()).isEqualTo(HttpStatus.NO_CONTENT);
+        assertThat(response.getBody().getStatusCode()).isEqualTo(HttpStatus.NO_CONTENT.value());
+        assertThat(response.getBody().getMessage()).isEqualTo("This user is delete with successfully");
+        assertThat(response.getBody().getData()).isNull();
+        assertThat(response.getBody().getPath()).isEqualTo("/api/v1/users/" + userId);
 
-        // Act & Assert
-        String uri = UsersController.BASE_USERS + UsersController.UPDATE_USER;
-        mockMvc.perform(put(uri)
-                        .contentType(MediaType.APPLICATION_JSON)
-                        .header("Authorization", authHeaderMock)
-                        .content(objectMapper.writeValueAsString(this.requestDto)))
-                .andExpect(status().isOk())
-                .andExpect(jsonPath("$.status").value("OK"))
-                .andExpect(jsonPath("$.data.userResponseDto.userName").value("Username"))
-                .andExpect(jsonPath("$.data.token.accessToken").value(tokenMock));
+        // VERIFY
+        verify(userService).deleteUser(userId);
     }
 
     @Test
-    @DisplayName("Devrait supprimer un utilisateur avec succès")
-    void shouldDeleteUserSuccessfully() throws Exception {
+    void getUser_shouldReturnUserOutputDto_whenUserExists() {
+        // GIVEN
+        String userId = "user-123";
+        UserOutputDto userOutputDto = new UserOutputDto();
+        userOutputDto.keycloakId = userId;
+        userOutputDto.birthdate = LocalDate.of(1990, 1, 1);
+        userOutputDto.height = 180;
+        userOutputDto.weight = 75;
+        userOutputDto.setGender(Gender.MALE);
+        userOutputDto.setActivityLevel(ActivityLevel.MODERATELY_ACTIVE);
+        userOutputDto.setGoal(Goal.MAINTENANCE);
+        userOutputDto.setAllergies(List.of("Peanuts", "Shellfish"));
+        userOutputDto.setDietaryPreference(List.of("Vegan"));
 
-        // Arrange
-        String userId = "test-user-id";
-        when(keycloakService.checkUserExist(any(RegisterRequestDto.class)))
-                .thenReturn(false);
-        doNothing().when(userService).deleteUser(userId);
+        when(userService.getUser(userId)).thenReturn(userOutputDto);
 
-        // Act & Assert
-        String uri = UsersController.BASE_USERS + UsersController.DELETE_USER;
-        mockMvc.perform(delete(uri, userId))
-                .andExpect(status().isNoContent())
-                .andExpect(jsonPath("$.status").value("NO_CONTENT"));
+        // WHEN
+        ResponseEntity<GenericApiResponse<ApiResponseData>> response = usersController.getUser(userId);
+
+        // THEN
+        assertNotNull(response.getBody());
+        assertThat(response.getBody()).isNotNull();
+
+        assertThat(response.getStatusCode()).isEqualTo(HttpStatus.OK);
+        assertThat(response.getBody().getStatusCode()).isEqualTo(HttpStatus.OK.value());
+        assertThat(response.getBody().getMessage()).isEqualTo("user find successfully");
+        assertThat(response.getBody().getPath()).isEqualTo(UsersController.BASE_USERS + "/" + userId);
+        assertThat(response.getBody().getData()).isEqualTo(userOutputDto);
+
+        verify(userService).getUser(userId);
     }
 
     @Test
-    @DisplayName("Devrait récupérer un utilisateur avec succès")
-    void shouldGetUserSuccessfully() throws Exception {
+    void updateUser_shouldReturnUpdatedUserResponse() {
+        // GIVEN
+        UserInputDTO inputDTO = new UserInputDTO();
+        inputDTO.setKeycloakId("user-123");
 
-        // Arrange
-        String userId = "test-user-id";
-        when(keycloakService.checkUserExist(any(RegisterRequestDto.class)))
-                .thenReturn(false);
-        when(userService.getuser(userId))
-                .thenReturn(Optional.of(this.requestDto.UserMapping()));
+        User updatedUser = new User();
+        updatedUser.setKeycloakId("user-123");
 
-        // Act & Assert
-        String uri = UsersController.BASE_USERS + UsersController.GET_USER_ID;
-        mockMvc.perform(get(uri, userId))
-                .andExpect(status().isOk())
-                .andExpect(jsonPath("$.status").value("OK"))
-                .andExpect(jsonPath("$.data.userName").value("Username"));
+        when(userService.updateUser(inputDTO)).thenReturn(updatedUser);
+
+        // WHEN
+        ResponseEntity<GenericApiResponse<ApiResponseData>> response = usersController.updateUser(inputDTO);
+
+        // THEN
+        assertNotNull(response.getBody());
+        assertThat(response.getBody()).isNotNull();
+
+        assertThat(response.getStatusCode()).isEqualTo(HttpStatus.OK);
+        assertThat(response.getBody().getStatusCode()).isEqualTo(HttpStatus.OK.value());
+        assertThat(response.getBody().getMessage()).isEqualTo("This user is update with successfully");
+        assertThat(response.getBody().getPath()).isEqualTo(UsersController.BASE_USERS + UsersController.UPDATE_USER);
+
+        assertThat(response.getBody().getData()).isInstanceOf(UserCreatedResponseDto.class);
+        UserCreatedResponseDto responseData = (UserCreatedResponseDto) response.getBody().getData();
+        assertThat(responseData.getUserId()).isEqualTo(updatedUser.getKeycloakId());
+        assertThat(responseData.getMessage()).isEqualTo("User created");
+
+        verify(userService).updateUser(inputDTO);
     }
-
 
 }

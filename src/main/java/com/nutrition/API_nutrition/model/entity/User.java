@@ -11,7 +11,6 @@ import org.hibernate.annotations.UpdateTimestamp;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.util.List;
-import java.util.UUID;
 
 @Data
 @NoArgsConstructor
@@ -22,35 +21,23 @@ public class User {
 
     @Id
     @Column(name = "keycloak_id", length = 36)
-    private String keycloakId; // ID Keycloak utilisé comme clé primaire
+    private String keycloakId;
 
-    @Column(unique = true, nullable = false)
-    private String email;
-
-    @Column(name = "user_name", nullable = false)
-    private String username;
-    @Column(name = "first_name", nullable = false)
-    private String firstName;
-    @Column(name = "last_name", nullable = false)
-    private String lastName;
-
-    @Column(name = "birth_date", nullable = false)
+    @Column(name = "birth_date")
     private LocalDate birthDate;
 
     @Column(name = "created_at", updatable = false)
     @CreationTimestamp
-    private LocalDateTime createdAt;    // la date de création
+    private LocalDateTime createdAt;
 
     @Column(name = "updated_at")
     @UpdateTimestamp
     private LocalDateTime updatedAt;
 
-    @Column(nullable = false,columnDefinition = "SMALLINT")
-    @Positive(message = "The height is invalid")
+    @Column(columnDefinition = "SMALLINT")
     private short height; // en cm
 
-    @Column(nullable = false, columnDefinition = "SMALLINT")
-    @Positive(message = "The weight is invalid")
+    @Column(columnDefinition = "SMALLINT")
     private short weight; // en kg
 
     @Enumerated(EnumType.STRING)

@@ -66,17 +66,14 @@ public class SecurityConfig  {
                                 "/webjars/**")
                         .permitAll()
 
-                        // /auth pas besoin de token JWT valide à fournir
-                        .requestMatchers("/api/v1/auth/**").permitAll()
-
                         // /admin
                         .requestMatchers("/api/v1/admin/**").hasAuthority("ROLE_ADMIN")
 
                         // /users
                         .requestMatchers(HttpMethod.PUT, BASE_USERS + REGISTER).hasAuthority("ROLE_USER_REALM")
-                        .requestMatchers(HttpMethod.PUT, BASE_USERS + UPDATE_USER).hasAuthority("ROLE_USER")
-                        .requestMatchers(HttpMethod.GET, BASE_USERS + GET_USER_ID).hasAuthority("ROLE_USER")
-                        .requestMatchers(HttpMethod.DELETE, BASE_USERS + DELETE_USER).hasAuthority("ROLE_USER")
+                        .requestMatchers(HttpMethod.PUT, BASE_USERS + UPDATE_USER).hasAuthority("ROLE_USER_REALM")
+                        .requestMatchers(HttpMethod.GET, BASE_USERS + GET_USER_ID).hasAuthority("ROLE_USER_REALM")
+                        .requestMatchers(HttpMethod.DELETE, BASE_USERS + DELETE_USER).hasAuthority("ROLE_USER_REALM")
 
                         // Toutes les autres requêtes nécessitent une authentification donc qu’un JWT valide soit fourni
                         .anyRequest().authenticated()

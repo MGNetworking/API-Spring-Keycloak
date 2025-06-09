@@ -1,10 +1,11 @@
 package com.nutrition.API_nutrition.service;
 
 import com.fasterxml.jackson.core.JsonProcessingException;
+import com.nutrition.API_nutrition.config.UserFactory;
 import com.nutrition.API_nutrition.exception.ApiException;
 import com.nutrition.API_nutrition.exception.ErrorCode;
-import com.nutrition.API_nutrition.model.dto.RegisterRequestDto;
-import com.nutrition.API_nutrition.model.dto.UserResponseDto;
+import com.nutrition.API_nutrition.model.dto.UserInputDTO;
+import com.nutrition.API_nutrition.model.dto.UserOutputDto;
 import com.nutrition.API_nutrition.model.entity.Gender;
 import com.nutrition.API_nutrition.model.entity.User;
 import com.nutrition.API_nutrition.repository.UserRepository;
@@ -12,18 +13,18 @@ import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
-import org.keycloak.representations.idm.RoleRepresentation;
 import org.mockito.ArgumentCaptor;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
+import org.springframework.dao.*;
 import org.springframework.http.HttpStatus;
+import org.springframework.orm.jpa.JpaSystemException;
 
 import java.time.LocalDate;
-import java.util.ArrayList;
-import java.util.List;
 import java.util.Optional;
 
+import static org.assertj.core.api.Assertions.assertThat;
 import static org.junit.jupiter.api.Assertions.*;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.*;
@@ -38,272 +39,396 @@ class UserServiceTest {
     private UserRepository userRepository;
 
     @Mock
-    private KeycloakService keycloakService;
+    private UserFactory userFactory;
 
-    RegisterRequestDto dto;
+    UserInputDTO userInputDTO;
+    UserOutputDto userOutputDto;
 
     @BeforeEach
     public void init() {
 
-        this.dto = new RegisterRequestDto();
-        dto.getKeycloakUserData().setKeycloakId("kc123456");
-        dto.getKeycloakUserData().setPassword("password");
-        dto.getKeycloakUserData().setUserName("UserName");
-        dto.getKeycloakUserData().setFirstName("FirstName");
-        dto.getKeycloakUserData().setLastName("LastName");
-        dto.getKeycloakUserData().setEmail("FirstName.LastName@example.com");
-        dto.setBirthdate(LocalDate.of(1990, 1, 1));
-        dto.setGender(Gender.MALE);
-        dto.setHeight((short) 180);
-        dto.setWeight((short) 75);
+        this.userInputDTO = new UserInputDTO();
+        userInputDTO.setKeycloakId("kc123456");
+        userInputDTO.setBirthdate(LocalDate.of(1990, 1, 1));
+        userInputDTO.setGender(Gender.MALE);
+        userInputDTO.setHeight((short) 180);
+        userInputDTO.setWeight((short) 75);
+
+        this.userOutputDto = new UserOutputDto();
+        userOutputDto.setKeycloakId(this.userInputDTO.getKeycloakId());
+        userOutputDto.setBirthdate(LocalDate.of(1990, 1, 1));
+        userOutputDto.setGender(Gender.MALE);
+        userOutputDto.setHeight((short) 180);
+        userOutputDto.setWeight((short) 75);
     }
 
     @Test
-    @DisplayName("Test de création d'un utilisateur")
-    public void testCreateUser_Success() throws JsonProcessingException {
+    @DisplayName("Devrait créer un utilisateur avec succès")
+    public void shouldCreateUserSuccessfully() throws JsonProcessingException {
 
-        // Arrange : créer les objet de simulation
-        // Simuler les appels à KeycloakService (void methods)
+        // Arrange
+        String userId = this.userInputDTO.getKeycloakId();
+        User expectedUser = new User();
+        expectedUser.setKeycloakId(userId);
 
-        List<RoleRepresentation> roleRepresentations = new ArrayList<>();
-        RoleRepresentation roleUser = new RoleRepresentation(
-                "ROLE_USER", "Role user test", true);
+        // Mock
+        when(userRepository.save(any(User.class))).thenReturn(expectedUser);
 
-        doNothing().when(keycloakService).createUser(any());
-        when(keycloakService.getClientScopedRoles()).thenReturn(List.of(roleUser));
-        doNothing().when(keycloakService).addUserRolesClient(
-                this.dto.getKeycloakUserData().getKeycloakId(), List.of(roleUser));
+        // When
+        assertDoesNotThrow(() -> userService.createUser(userId));
 
-        // Simuler la sauvegarde en base
+        // Then
         ArgumentCaptor<User> userCaptor = ArgumentCaptor.forClass(User.class);
-        when(userRepository.save(userCaptor.capture())).thenReturn(dto.UserMapping());
+        verify(userRepository, times(1)).save(userCaptor.capture());
+        assertEquals(userId, userCaptor.getValue().getKeycloakId());
 
-        // Act : lancement de la méthode à tester
-        UserResponseDto result = userService.createUser(dto);
+    }
 
-        // Assert : Vérifier des résultats
+    @Test
+    @DisplayName("Devrait mettre à jour l'utilisateur avec succè")
+    void shouldUpdateUserSuccessfully() {
+        // Given
+        String keycloakId = this.userInputDTO.getKeycloakId();
+
+        User existingUser = new User();
+        existingUser.setKeycloakId(keycloakId);
+
+        User updatedUser = new User();
+        updatedUser.setKeycloakId(keycloakId);
+        updatedUser.setWeight((short) 100);
+
+        when(userRepository.findById(keycloakId)).thenReturn(Optional.of(existingUser));
+        when(userRepository.save(existingUser)).thenReturn(updatedUser);
+
+        // When
+        User result = userService.updateUser(userInputDTO);
+
+        // Then
         assertNotNull(result);
+        assertEquals(updatedUser.getWeight(), result.getWeight());
 
-        // Vérifier le retour capturé
-        User capturedUser = userCaptor.getValue();
-        assertEquals(dto.getKeycloakUserData().getKeycloakId(), capturedUser.getKeycloakId());
-        assertEquals(dto.getKeycloakUserData().getEmail(), capturedUser.getEmail());
-        assertEquals(dto.getKeycloakUserData().getFirstName(), capturedUser.getFirstName());
-        assertEquals(dto.getKeycloakUserData().getLastName(), capturedUser.getLastName());
-        assertEquals(dto.getBirthdate(), capturedUser.getBirthDate());
-        assertEquals(dto.getGender(), capturedUser.getGender());
-        assertEquals(dto.getHeight(), capturedUser.getHeight());
-        assertEquals(dto.getWeight(), capturedUser.getWeight());
-
-        // Vérifie que les méthodes void ont bien été appelées
-        verify(keycloakService).createUser(any());
-        verify(keycloakService).addUserRolesClient(dto.getKeycloakUserData().getKeycloakId(), List.of(roleUser));
+        verify(userFactory).updateUserFromDto(existingUser, userInputDTO);
+        verify(userRepository).save(existingUser);
+        verify(userRepository).flush();
     }
 
     @Test
-    @DisplayName("Test d'échec lors de la création d'un utilisateur")
-    public void testCreateUser_Failure() {
-        // Arrange
-        // Simuler une exception dans la methode void
-        doThrow(new ApiException("create user",
-                HttpStatus.BAD_REQUEST,
-                ErrorCode.USER_CREATION_FAILED.toString()))
-                .when(keycloakService).createUser(dto);
+    @DisplayName("Devrait lancer une exception lorsque l'objet est nul")
+    void shouldThrowExceptionWhenDtoIsNull() {
+        // Given
+        UserInputDTO dto = null;
 
-        // Act & Assert
-        ApiException exception = assertThrows(ApiException.class, () -> {
-            userService.createUser(this.dto);
-        });
+        // When + Then
+        ApiException ex = assertThrows(ApiException.class, () -> userService.updateUser(dto));
+        assertEquals(HttpStatus.BAD_REQUEST, ex.getHttpStatus());
+        assertEquals("User data is missing or invalid", ex.getMessage());
+        assertEquals(ErrorCode.INVALID_USER_DATA.toString(), ex.getErrorCode());
 
-        // Vérifie que le message d'erreur contient la chaîne attendue
-        assertEquals(ErrorCode.USER_CREATION_FAILED.toString(), exception.getErrorCode());
-
-        // Vérifie que la méthode de sauvegarde en base n'a pas été appelée
-        verify(userRepository, never()).save(any());
+        verifyNoInteractions(userRepository);
+        verifyNoInteractions(userFactory);
     }
 
     @Test
-    @DisplayName("Test de création d'un utilisateur avec DTO null")
-    public void testCreateUser_NullDto() {
-        // Act & Assert
-        ApiException exception = assertThrows(ApiException.class, () -> {
-            userService.createUser(null);
-        });
+    @DisplayName("Devrait lever une exception lorsque KeycloakId est vide")
+    void shouldThrowExceptionWhenKeycloakIdIsBlank() {
+        // Given
+        UserInputDTO dto = new UserInputDTO();
+        dto.setKeycloakId("  ");
 
-        assertEquals(ErrorCode.DB_ERROR.toString(), exception.getErrorCode());
+        // When + Then
+        ApiException ex = assertThrows(ApiException.class, () -> userService.updateUser(dto));
+        assertEquals(HttpStatus.BAD_REQUEST, ex.getHttpStatus());
+        assertEquals("User data is missing or invalid", ex.getMessage());
+        assertEquals(ErrorCode.INVALID_USER_DATA.toString(), ex.getErrorCode());
 
-        // Vérifier qu'aucune méthode n'a été appelée
-        verifyNoInteractions(keycloakService);
+        verifyNoInteractions(userRepository);
+        verifyNoInteractions(userFactory);
+    }
+
+    @Test
+    @DisplayName("Devrait lever une exception lorsque l'utilisateur n'est pas trouvé")
+    void shouldThrowExceptionWhenUserNotFound() {
+        // Given
+        String keycloakId = "unknown-id";
+        UserInputDTO dto = new UserInputDTO();
+        dto.setKeycloakId(keycloakId);
+
+        when(userRepository.findById(keycloakId)).thenReturn(Optional.empty());
+
+        // When + Then
+        ApiException ex = assertThrows(ApiException.class, () -> userService.updateUser(dto));
+        assertEquals(HttpStatus.NOT_FOUND, ex.getHttpStatus());
+        assertEquals("User not found, update is impossible", ex.getMessage());
+        assertEquals(ErrorCode.DB_USER_NOT_FOUND.toString(), ex.getErrorCode());
+
+        verify(userRepository).findById(keycloakId);
+        verifyNoMoreInteractions(userRepository);
+        verifyNoInteractions(userFactory);
+    }
+
+    @Test
+    @DisplayName("Devrait lancer une exception en cas de violation de l'intégrité")
+    void shouldThrowExceptionWhenIntegrityViolationOccurs() {
+        // Given
+        String keycloakId = "keycloak-123";
+        UserInputDTO dto = new UserInputDTO();
+        dto.setKeycloakId(keycloakId);
+
+        User user = new User();
+        user.setKeycloakId(keycloakId);
+
+        when(userRepository.findById(keycloakId)).thenReturn(Optional.of(user));
+        doNothing().when(userFactory).updateUserFromDto(user, dto);
+        when(userRepository.save(user)).thenThrow(new DataIntegrityViolationException("Duplicate key"));
+
+        // When + Then
+        ApiException ex = assertThrows(ApiException.class, () -> userService.updateUser(dto));
+        assertEquals(HttpStatus.CONFLICT, ex.getHttpStatus());
+        assertEquals("The update failed: some of the data did not comply with the expected constraints", ex.getMessage());
+        assertEquals(ErrorCode.DB_CONSTRAINT_VIOLATION.toString(), ex.getErrorCode());
+
+        verify(userRepository).findById(keycloakId);
+        verify(userFactory).updateUserFromDto(user, dto);
+        verify(userRepository).save(user);
+    }
+
+    @Test
+    @DisplayName("Devrait lancer une exception en cas d'erreur Jpa")
+    void shouldThrowExceptionWhenJpaErrorOccurs() {
+        // Given
+        String keycloakId = "keycloak-123";
+        UserInputDTO dto = new UserInputDTO();
+        dto.setKeycloakId(keycloakId);
+
+        User user = new User();
+        user.setKeycloakId(keycloakId);
+
+        when(userRepository.findById(keycloakId)).thenReturn(Optional.of(user));
+        doNothing().when(userFactory).updateUserFromDto(user, dto);
+        when(userRepository.save(user)).thenThrow(new JpaSystemException(new RuntimeException("JPA error")));
+
+        // When + Then
+        ApiException ex = assertThrows(ApiException.class, () -> userService.updateUser(dto));
+        assertEquals(HttpStatus.SERVICE_UNAVAILABLE, ex.getHttpStatus());
+        assertEquals("A technical error has occurred during the update. Please try again later.", ex.getMessage());
+        assertEquals(ErrorCode.DB_ERROR.toString(), ex.getErrorCode());
+    }
+
+    @Test
+    @DisplayName("Devrait lancer une exception en cas d'échec de l'accès aux données")
+    void shouldThrowExceptionWhenDataAccessFails() {
+        // Given
+        String keycloakId = "keycloak-123";
+        UserInputDTO dto = new UserInputDTO();
+        dto.setKeycloakId(keycloakId);
+
+        User user = new User();
+        user.setKeycloakId(keycloakId);
+
+        when(userRepository.findById(keycloakId)).thenReturn(Optional.of(user));
+        doNothing().when(userFactory).updateUserFromDto(user, dto);
+        when(userRepository.save(user)).thenThrow(new DataAccessResourceFailureException("DB down"));
+
+        // When + Then
+        ApiException ex = assertThrows(ApiException.class, () -> userService.updateUser(dto));
+        assertEquals(HttpStatus.INTERNAL_SERVER_ERROR, ex.getHttpStatus());
+        assertEquals("Unable to update user data due to database access problem.", ex.getMessage());
+        assertEquals(ErrorCode.DB_ERROR.toString(), ex.getErrorCode());
+    }
+
+    @Test
+    @DisplayName("Devrait lancer une exception en cas d'erreur inattendue")
+    void shouldThrowExceptionWhenUnexpectedErrorOccurs() {
+        // Given
+        String keycloakId = "keycloak-123";
+        UserInputDTO dto = new UserInputDTO();
+        dto.setKeycloakId(keycloakId);
+
+        User user = new User();
+        user.setKeycloakId(keycloakId);
+
+        when(userRepository.findById(keycloakId)).thenReturn(Optional.of(user));
+        doNothing().when(userFactory).updateUserFromDto(user, dto);
+        when(userRepository.save(user)).thenThrow(new RuntimeException("Unknown exception"));
+
+        // When + Then
+        ApiException ex = assertThrows(ApiException.class, () -> userService.updateUser(dto));
+        assertEquals(HttpStatus.INTERNAL_SERVER_ERROR, ex.getHttpStatus());
+        assertEquals("An unexpected error has occurred during the update. Please contact support.", ex.getMessage());
+        assertEquals(ErrorCode.TECHNICAL_ERROR.toString(), ex.getErrorCode());
+    }
+
+    @Test
+    @DisplayName("Devrait lever une exception lorsque KeycloakId est nul")
+    void shouldThrowExceptionWhenKeycloakIdIsNull() {
+        ApiException ex = assertThrows(ApiException.class, () -> userService.deleteUser(null));
+
+        assertEquals(HttpStatus.BAD_REQUEST, ex.getHttpStatus());
+        assertEquals("KeycloakId cannot be null or empty", ex.getMessage());
+        assertEquals(ErrorCode.BAD_REQUEST_PARAMETER.toString(), ex.getErrorCode());
+
         verifyNoInteractions(userRepository);
     }
 
     @Test
-    @DisplayName("Test de récupération d'un utilisateur")
-    public void testGetUser_Success() {
-        // Arrange
-        String keycloakId = "kc123456";
-        User user = dto.UserMapping();
-        when(userRepository.findByKeycloakId(keycloakId))
-                .thenReturn(Optional.of(user));
+    @DisplayName("Devrait lever une exception lorsque KeycloakId est vide")
+    void shouldThrowExceptionWhenKeycloakIdIsEmpty() {
+        ApiException ex = assertThrows(ApiException.class, () -> userService.deleteUser(""));
 
-        // Act
-        Optional<User> result = userService.getuser(keycloakId);
+        assertEquals(HttpStatus.BAD_REQUEST, ex.getHttpStatus());
+        assertEquals("KeycloakId cannot be null or empty", ex.getMessage());
+        assertEquals(ErrorCode.BAD_REQUEST_PARAMETER.toString(), ex.getErrorCode());
 
-        // Assert
-        assertTrue(result.isPresent());
-        assertEquals(keycloakId, result.get().getKeycloakId());
-        verify(userRepository).findByKeycloakId(keycloakId);
-    }
-
-    @Test
-    @DisplayName("Test d'échec lors de la récupération d'un utilisateur")
-    public void testGetUser_Failure() {
-        // Arrange
-        String keycloakId = "nonexistent";
-        when(userRepository.findByKeycloakId(keycloakId))
-                .thenThrow(new ApiException("Failed to research user",
-                        HttpStatus.BAD_REQUEST,
-                        ErrorCode.USER_RESEARCH_FAILED.toString()));
-
-        // Act & Assert
-        Exception exception = assertThrows(ApiException.class, () -> {
-            userService.getuser(keycloakId);
-        });
-
-        assertEquals("Failed to research user", exception.getMessage());
-        verify(userRepository).findByKeycloakId(keycloakId);
-    }
-
-
-    @Test
-    @DisplayName("Test de mise à jour d'un utilisateur")
-    public void testUpdateUser_Success() {
-
-        // Arrange
-        when(this.keycloakService.updateUser(any())).thenReturn(true);
-
-        // Simuler la sauvegarde en base
-        ArgumentCaptor<User> argumentCaptor = ArgumentCaptor.forClass(User.class);
-        when(this.userRepository.save(argumentCaptor.capture())).thenReturn(this.dto.UserMapping());
-        // simule le flush()
-        doNothing().when(this.userRepository).flush();
-
-        // Act
-        UserResponseDto userResponseDto = this.userService.updateUser(this.dto);
-
-        // Assert
-        assertNotNull(userResponseDto);
-        User resutltatUser = argumentCaptor.getValue();
-
-        assertEquals(dto.getKeycloakUserData().getKeycloakId(), resutltatUser.getKeycloakId());
-        assertEquals(dto.getKeycloakUserData().getUserName(), resutltatUser.getUsername());
-        assertEquals(dto.getKeycloakUserData().getFirstName(), resutltatUser.getFirstName());
-        assertEquals(dto.getKeycloakUserData().getLastName(), resutltatUser.getLastName());
-        assertEquals(dto.getKeycloakUserData().getEmail(), resutltatUser.getEmail());
-    }
-
-    @Test
-    @DisplayName("Test d'échec lors de la mise à jour d'un utilisateur")
-    public void testUpdateUser_Failure() {
-
-        // Arrange
-        when(this.keycloakService.updateUser(dto)).thenReturn(false);
-
-        // Act & Assert
-        ApiException exception = assertThrows(ApiException.class, () -> {
-            this.userService.updateUser(this.dto);
-        });
-
-        assertEquals(ErrorCode.USER_UPDATE_FAILED.toString(), exception.getErrorCode());
-
-        // Vérifie que la méthode de sauvegarde en base n'a pas été appelée
-        verify(this.userRepository, never()).save(any());
-    }
-
-    @Test
-    @DisplayName("Test de mise à jour d'un utilisateur avec DTO null")
-    public void testUpdateUser_NullDto() {
-        // Act & Assert
-        ApiException exception = assertThrows(ApiException.class, () -> {
-            userService.updateUser(null);
-        });
-
-        assertEquals(ErrorCode.USER_RESEARCH_FAILED.toString(), exception.getErrorCode());
-
-        // Vérifier qu'aucune méthode n'a été appelée
-        verifyNoInteractions(keycloakService);
         verifyNoInteractions(userRepository);
     }
 
     @Test
-    @DisplayName("Test de suppression d'un utilisateur")
-    public void testDeleteUser_Success() {
-        // Arrange
-        String keycloakId = "kc123456";
-        when(keycloakService.removeUser(keycloakId)).thenReturn(true);
-        doNothing().when(userRepository).deleteById(keycloakId);
-        when(userRepository.existsById(keycloakId)).thenReturn(false);
+    @DisplayName("Devrait lever une exception lorsque la suppression d'un utilisateur n'est pas trouvée")
+    void shouldThrowExceptionWhenDeleteUserUserNotFound() {
+        String keycloakId = "non-existent-id";
 
-        // Act
-        userService.deleteUser(keycloakId);
+        doThrow(new EmptyResultDataAccessException(1))
+                .when(userRepository).deleteById(keycloakId);
 
-        // Assert
-        verify(keycloakService).removeUser(keycloakId);
+        ApiException ex = assertThrows(ApiException.class, () -> userService.deleteUser(keycloakId));
+
+        assertEquals(HttpStatus.NOT_FOUND, ex.getHttpStatus());
+        assertEquals("User not found for deletion", ex.getMessage());
+        assertEquals(ErrorCode.DB_USER_NOT_FOUND.toString(), ex.getErrorCode());
+
         verify(userRepository).deleteById(keycloakId);
-        verify(userRepository).existsById(keycloakId);
+        verifyNoMoreInteractions(userRepository);
     }
 
     @Test
-    @DisplayName("Test d'échec lors de la suppression d'un utilisateur - échec Keycloak")
-    public void testDeleteUser_KeycloakFailure() {
-        // Arrange
-        String keycloakId = "kc123456";
-        when(keycloakService.removeUser(keycloakId)).thenReturn(false);
+    @DisplayName("Devrait lever une exception en cas de violation de l'intégrité de l'utilisateur supprimé")
+    void shouldThrowExceptionWhenDeleteUserIntegrityViolationOccurs() {
+        String keycloakId = "user-123";
 
-        // Act & Assert
-        ApiException exception = assertThrows(ApiException.class, () -> {
-            userService.deleteUser(keycloakId);
-        });
+        doThrow(new DataIntegrityViolationException("Foreign key violation"))
+                .when(userRepository).deleteById(keycloakId);
 
-        assertEquals(ErrorCode.KEYCLOAK_BAD_REQUEST.toString(), exception.getErrorCode());
+        ApiException ex = assertThrows(ApiException.class, () -> userService.deleteUser(keycloakId));
 
-        // Vérifier que la méthode de suppression en base n'a pas été appelée
-        verify(userRepository, never()).deleteById(anyString());
-    }
+        assertEquals(HttpStatus.CONFLICT, ex.getHttpStatus());
+        assertEquals("Cannot delete user due to database constraints", ex.getMessage());
+        assertEquals(ErrorCode.DB_CONSTRAINT_VIOLATION.toString(), ex.getErrorCode());
 
-    @Test
-    @DisplayName("Test d'échec lors de la suppression d'un utilisateur - utilisateur toujours présent en base")
-    public void testDeleteUser_DatabaseFailure() {
-        // Arrange
-        String keycloakId = "kc123456";
-        when(keycloakService.removeUser(keycloakId)).thenReturn(true);
-        doNothing().when(userRepository).deleteById(keycloakId);
-        when(userRepository.existsById(keycloakId)).thenReturn(true);
-
-        // Act & Assert
-        ApiException exception = assertThrows(ApiException.class, () -> {
-            userService.deleteUser(keycloakId);
-        });
-
-        assertEquals(ErrorCode.DB_ERROR.toString(), exception.getErrorCode());
-
-        // Vérifier que les méthodes ont été appelées
-        verify(keycloakService).removeUser(keycloakId);
         verify(userRepository).deleteById(keycloakId);
     }
 
     @Test
-    @DisplayName("Test de suppression d'un utilisateur avec ID null")
-    public void testDeleteUser_NullId() {
-        // Act & Assert
-        ApiException exception = assertThrows(ApiException.class, () -> {
-            userService.deleteUser(null);
-        });
+    @DisplayName("devrait lancer une exception en cas d'erreur lors de la suppression d'un utilisateur Jpa")
+    void shouldThrowExceptionWhenDeleteUserJpaErrorOccurs() {
+        String keycloakId = "user-123";
 
-        assertEquals(ErrorCode.BAD_REQUEST_PARAMETER.toString(), exception.getErrorCode());
+        doThrow(new JpaSystemException(new RuntimeException("JPA failure")))
+                .when(userRepository).deleteById(keycloakId);
 
-        // Vérifier qu'aucune méthode n'a été appelée
-        verifyNoInteractions(keycloakService);
-        verifyNoInteractions(userRepository);
+        ApiException ex = assertThrows(ApiException.class, () -> userService.deleteUser(keycloakId));
+
+        assertEquals(HttpStatus.INTERNAL_SERVER_ERROR, ex.getHttpStatus());
+        assertEquals("Error during user deletion transaction", ex.getMessage());
+        assertEquals(ErrorCode.DB_ERROR.toString(), ex.getErrorCode());
     }
+
+    @Test
+    @DisplayName("Devrait lancer une exception en cas d'erreur inattendue lors de la suppression d'un utilisateur")
+    void shouldThrowExceptionWhenDeleteUserUnexpectedErrorOccurs() {
+        String keycloakId = "user-123";
+
+        doThrow(new RuntimeException("Unexpected failure"))
+                .when(userRepository).deleteById(keycloakId);
+
+        ApiException ex = assertThrows(ApiException.class, () -> userService.deleteUser(keycloakId));
+
+        assertEquals(HttpStatus.INTERNAL_SERVER_ERROR, ex.getHttpStatus());
+        assertEquals("Failed to delete user due to unexpected error", ex.getMessage());
+        assertEquals(ErrorCode.TECHNICAL_ERROR.toString(), ex.getErrorCode());
+    }
+
+    @Test
+    void getUser_whenUserExists_shouldReturnUserOutputDto() {
+        User userEntity = new User();
+        String userId = this.userInputDTO.getKeycloakId();
+
+
+        when(userRepository.findById(userId)).thenReturn(Optional.of(userEntity));
+        when(userFactory.userToUserDtoOutput(userEntity)).thenReturn(userOutputDto);
+
+        UserOutputDto result = userService.getUser(userId);
+
+        assertThat(result).isNotNull();
+        assertThat(result.keycloakId).isEqualTo(userId);
+
+        verify(userRepository).findById(userId);
+        verify(userFactory).userToUserDtoOutput(userEntity);
+    }
+
+    @Test
+    void getUser_whenUserNotFound_shouldThrowApiExceptionNotFound() {
+
+        String userId = this.userInputDTO.getKeycloakId();
+        when(userRepository.findById(userId)).thenReturn(Optional.empty());
+
+        ApiException thrown = assertThrows(ApiException.class, () -> userService.getUser(userId));
+        assertThat(thrown.getHttpStatus()).isEqualTo(HttpStatus.NOT_FOUND);
+        assertThat(thrown.getMessage()).contains("User not found with id");
+    }
+
+    @Test
+    void getUser_whenDataIntegrityViolationException_shouldThrowApiExceptionConflict() {
+
+        String userId = this.userInputDTO.getKeycloakId();
+        when(userRepository.findById(userId)).thenThrow(DataIntegrityViolationException.class);
+
+        ApiException thrown = assertThrows(ApiException.class, () -> userService.getUser(userId));
+        assertThat(thrown.getHttpStatus()).isEqualTo(HttpStatus.CONFLICT);
+        assertThat(thrown.getMessage()).contains("Database constraint violation");
+    }
+
+    @Test
+    void getUser_whenJpaSystemException_shouldThrowApiExceptionServiceUnavailable() {
+
+        String userId = this.userInputDTO.getKeycloakId();
+        when(userRepository.findById(userId)).thenThrow(JpaSystemException.class);
+
+        ApiException thrown = assertThrows(ApiException.class, () -> userService.getUser(userId));
+        assertThat(thrown.getHttpStatus()).isEqualTo(HttpStatus.SERVICE_UNAVAILABLE);
+        assertThat(thrown.getMessage()).contains("Database system error");
+    }
+
+    @Test
+    void getUser_whenTransientDataAccessException_shouldThrowApiExceptionServiceUnavailable() {
+
+        String userId = this.userInputDTO.getKeycloakId();
+        when(userRepository.findById(userId)).thenThrow(new QueryTimeoutException("Simulated transient error"));
+
+        ApiException thrown = assertThrows(ApiException.class, () -> userService.getUser(userId));
+        assertThat(thrown.getHttpStatus()).isEqualTo(HttpStatus.SERVICE_UNAVAILABLE);
+        assertThat(thrown.getMessage()).contains("Database system error");
+    }
+
+    @Test
+    void getUser_whenDataAccessException_shouldThrowApiExceptionInternalServerError() {
+
+        String userId = this.userInputDTO.getKeycloakId();
+        when(userRepository.findById(userId)).thenThrow(new RecoverableDataAccessException("Simulated DB failure"));
+
+        ApiException thrown = assertThrows(ApiException.class, () -> userService.getUser(userId));
+        assertThat(thrown.getHttpStatus()).isEqualTo(HttpStatus.INTERNAL_SERVER_ERROR);
+        assertThat(thrown.getMessage()).contains("Database access error");
+    }
+
+    @Test
+    void getUser_whenUnexpectedException_shouldThrowApiExceptionInternalServerError() {
+
+        String userId = this.userInputDTO.getKeycloakId();
+        when(userRepository.findById(userId)).thenThrow(RuntimeException.class);
+
+        ApiException thrown = assertThrows(ApiException.class, () -> userService.getUser(userId));
+        assertThat(thrown.getHttpStatus()).isEqualTo(HttpStatus.INTERNAL_SERVER_ERROR);
+        assertThat(thrown.getMessage()).contains("Unexpected error occurred");
+    }
+
 }

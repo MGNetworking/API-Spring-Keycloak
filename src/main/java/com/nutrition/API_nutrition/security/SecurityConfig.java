@@ -67,13 +67,13 @@ public class SecurityConfig  {
                         .permitAll()
 
                         // /admin
-                        .requestMatchers("/api/v1/admin/**").hasAuthority("ROLE_ADMIN")
+                        .requestMatchers("/api/v1/admin/**").hasAuthority("ROLE_ADMIN_FRONT")
 
                         // /users
-                        .requestMatchers(HttpMethod.PUT, BASE_USERS + REGISTER).hasAuthority("ROLE_USER_REALM")
-                        .requestMatchers(HttpMethod.PUT, BASE_USERS + UPDATE_USER).hasAuthority("ROLE_USER_REALM")
-                        .requestMatchers(HttpMethod.GET, BASE_USERS + GET_USER_ID).hasAuthority("ROLE_USER_REALM")
-                        .requestMatchers(HttpMethod.DELETE, BASE_USERS + DELETE_USER).hasAuthority("ROLE_USER_REALM")
+                        .requestMatchers(HttpMethod.PUT, BASE_USERS + REGISTER).hasAuthority("ROLE_BASIC")
+                        .requestMatchers(HttpMethod.PUT, BASE_USERS + UPDATE_USER).hasAuthority("ROLE_BASIC")
+                        .requestMatchers(HttpMethod.GET, BASE_USERS + GET_USER_ID).hasAuthority("ROLE_BASIC")
+                        .requestMatchers(HttpMethod.DELETE, BASE_USERS + DELETE_USER).hasAuthority("ROLE_BASIC")
 
                         // Toutes les autres requêtes nécessitent une authentification donc qu’un JWT valide soit fourni
                         .anyRequest().authenticated()

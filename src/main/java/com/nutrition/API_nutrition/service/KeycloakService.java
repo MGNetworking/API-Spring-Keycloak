@@ -5,7 +5,7 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.nutrition.API_nutrition.config.KeycloakProvider;
 import com.nutrition.API_nutrition.exception.ApiException;
 import com.nutrition.API_nutrition.exception.ErrorCode;
-import com.nutrition.API_nutrition.util.HttpClientConfig;
+import com.nutrition.API_nutrition.model.dto.UserWithRolesDto;
 import jakarta.ws.rs.WebApplicationException;
 import lombok.extern.slf4j.Slf4j;
 import org.keycloak.admin.client.Keycloak;
@@ -16,7 +16,6 @@ import org.keycloak.representations.idm.UserRepresentation;
 import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
 
-import java.net.http.HttpClient;
 import java.util.List;
 
 /**
@@ -107,31 +106,29 @@ public class KeycloakService {
     }
 
     /**
-     * Assigne une liste de rôles Keycloak à un utilisateur au **niveau d’un client** spécifique.
+     * Permet l'ajout de role à l'utilisateur ciblé sur le domains configurer
      *
-     * <p>Cette méthode permet d'affecter des rôles qui sont associés à un client particulier dans Keycloak,
+     * @param userId              {@link String} l'identifiant utilisateur
+     * @param roleRepresentations {@link List} des {@link RoleRepresentation} a ajouter
+     * @throws ApiException en cas d'erreur interne
+     */
+    public void addUserRolesClient(String userId, List<RoleRepresentation> roleRepresentations) throws ApiException {
+        this.addUserRolesClient(userId, this.keycloakProvider.getClientId(), roleRepresentations);
+    }
+
+    /**
+     * Assigne une liste de rôle en provenance de Keycloak, à un utilisateur au **niveau d’un client** spécifique.
+     *
+     * <p>Cette méthode permet d'affecter des rôles qui sont associés à un client ciblé dans Keycloak,
      * ce qui signifie que ces rôles sont liés à une application ou un service précis.
      * Contrairement à l’assignation de rôles au niveau du realm, ces rôles sont spécifiques à un client (client-level roles).
      *
-     * <p>La méthode effectue les étapes suivantes :
-     * <ul>
-     *     <li>Récupère le client correspondant à l'ID client spécifié dans la configuration Keycloak.</li>
-     *     <li>Récupère la représentation de chaque rôle à assigner dans le client spécifié.</li>
-     *     <li>Assigne ces rôles à l'utilisateur spécifié au niveau du client.</li>
-     * </ul>
-     *
-     * <p>Elle gère les cas d’erreurs suivants :
-     * <ul>
-     *     <li><strong>WebApplicationException</strong> : réponse d’erreur HTTP de Keycloak, journalisée et encapsulée dans une {@link ApiException}.</li>
-     *     <li><strong>ProcessingException</strong> : problème réseau ou local, transformé en {@link ApiException} avec un statut 503.</li>
-     *     <li><strong>Exception</strong> : toute erreur imprévue, encapsulée dans une {@link ApiException} avec un statut 500.</li>
-     * </ul>
-     *
      * @param userId              l’identifiant Keycloak de l’utilisateur auquel les rôles doivent être assignés.
      * @param roleRepresentations la liste des noms des rôles client-level à assigner.
+     * @param targetClient        Le client en tant que sous domaine Keycloak.
      * @throws ApiException si une erreur survient lors de l’assignation des rôles.
      */
-    public void addUserRolesClient(String userId, List<RoleRepresentation> roleRepresentations) throws ApiException {
+    public void addUserRolesClient(String userId, String targetClient, List<RoleRepresentation> roleRepresentations) throws ApiException {
 
         try {
 
@@ -141,25 +138,12 @@ public class KeycloakService {
                         ErrorCode.USER_ROLE_ASSIGNMENT_FAILED.toString());
             }
 
-            List<ClientRepresentation> clients = getKc().realm(getRealm())
-                    .clients()
-                    .findByClientId(this.keycloakProvider.getClientId());
-
-            if (clients.isEmpty()) {
-                throw new ApiException("Client not found: " + this.keycloakProvider.getClientId(),
-                        HttpStatus.BAD_REQUEST,
-                        ErrorCode.USER_ROLE_ASSIGNMENT_FAILED.toString());
-            }
-
-            String clientUuid = clients.get(0).getId();
-            log.debug("Client UUID retrieved for clientId '{}': {}", this.keycloakProvider.getClientId(), clientUuid);
-
             // Assigner des rôles à un utilisateur pour un client spécifique
             getKc().realm(getRealm())
                     .users()
                     .get(userId)
                     .roles()
-                    .clientLevel(clientUuid)
+                    .clientLevel(this.getUserClientTarget(targetClient).getId())
                     .add(roleRepresentations);
 
         } catch (WebApplicationException e) {
@@ -189,7 +173,7 @@ public class KeycloakService {
     }
 
     /**
-     * get list role realm
+     * Récupérer la list des roles du domain configurer
      */
     public List<RoleRepresentation> getRealmScopedRoles() {
         return getKc().realm(getRealm())
@@ -198,23 +182,25 @@ public class KeycloakService {
     }
 
     /**
-     * get list role client
+     * Récupérer la list des roles du client configuré (sous domain Keycloak)
+     *
+     * @return {@link List} de {@link RoleRepresentation}
      */
     public List<RoleRepresentation> getClientScopedRoles() {
-        ClientRepresentation client = getKc().realm(getRealm())
-                .clients()
-                .findByClientId(this.keycloakProvider.getClientId())
-                .stream()
-                .findFirst()
-                .orElseThrow(() -> new ApiException(
-                        "Client not found",
-                        HttpStatus.BAD_REQUEST,
-                        ErrorCode.KEYCLOAK_BAD_REQUEST.toString()
-                ));
+        return getClientScopedRoles(this.keycloakProvider.getClientId());
+    }
+
+    /**
+     * Récupérer la list des roles du client ciblé (sous domain Keycloak)
+     *
+     * @param targetClient {@link String} l'id client ciblé
+     * @return @return {@link List} de {@link RoleRepresentation}
+     */
+    public List<RoleRepresentation> getClientScopedRoles(String targetClient) {
 
         return getKc().realm(getRealm())
                 .clients()
-                .get(client.getId())
+                .get(this.getUserClientTarget(targetClient).getId())
                 .roles()
                 .list();
     }
@@ -235,13 +221,13 @@ public class KeycloakService {
     /**
      * Delete role client
      */
-    public void removeClientRoleFromUser(String userId, List<RoleRepresentation> roleRepresentations) {
+    public void removeClientRoleFromUser(String userId, String targetClient, List<RoleRepresentation> roleRepresentations) {
 
         getKc().realm(getRealm())
                 .users()
                 .get(userId)
                 .roles()
-                .clientLevel(userId)
+                .clientLevel(this.getUserClientTarget(targetClient).getId())
                 .remove(roleRepresentations);
     }
 
@@ -302,9 +288,68 @@ public class KeycloakService {
         }
     }
 
-    public List<UserRepresentation> getAllUser() {
+    /**
+     * Permet de récupérer la list de tout les utilisateurs dans le domains
+     *
+     * @return Une {@link List} de {@link UserRepresentation}
+     */
+    public List<UserRepresentation> getListRoleClient() {
         return this.getKc().realm(this.getRealm()).users().list();
     }
 
+    /**
+     * permet de récupérer un utilisateur est ses roles sur le client cible
+     *
+     * @param userId       {@link String} l'id utilisateur
+     * @param targetClient {@link String} l'id du domain client
+     * @return un {@link UserWithRolesDto}
+     */
+    public UserWithRolesDto getUserWithRoles(String userId, String targetClient) {
+        UserRepresentation user = this.getKc()
+                .realm(this.getRealm())
+                .users()
+                .get(userId)
+                .toRepresentation();
 
+        List<RoleRepresentation> roles = getListRoleClient(userId, targetClient);
+
+        return new UserWithRolesDto(user, roles);
+    }
+
+    /**
+     * Permet récupérer la list des roles d'un utilisateur en ciblant le domain client.
+     *
+     * @param userId       {@link String} l'identifiant utilisateur client
+     * @param targetClient {@link String} le nom du client Keycloak
+     * @return la {@link List} des {@link RoleRepresentation} que possède l'utilisateur
+     */
+    public List<RoleRepresentation> getListRoleClient(String userId, String targetClient) {
+
+        return this.getKc().realm(this.getRealm())
+                .users().get(userId)
+                .roles().clientLevel(this.getUserClientTarget(targetClient).getId())
+                .listEffective();
+
+    }
+
+    private ClientRepresentation getUserClientTarget(String targetClient) {
+
+        log.debug("Client rechercher:  {}", targetClient);
+
+        ClientRepresentation client = getKc().realm(getRealm())
+                .clients()
+                .findByClientId(targetClient)
+                .stream()
+                .findFirst()
+                .orElseThrow(() -> new ApiException(
+                        "Client not found",
+                        HttpStatus.BAD_REQUEST,
+                        ErrorCode.USER_ROLE_ASSIGNMENT_FAILED.toString()
+                ));
+
+        log.debug("getClientId: {}", client.getClientId());
+        log.debug("getId: {}", client.getId());
+
+        return client;
+    }
 }

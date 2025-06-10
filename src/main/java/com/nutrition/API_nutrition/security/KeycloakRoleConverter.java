@@ -19,11 +19,14 @@ public class KeycloakRoleConverter implements Converter<Jwt, Collection<GrantedA
     public Collection<GrantedAuthority> convert(Jwt jwt) {
         Collection<GrantedAuthority> authorities = new ArrayList<>();
 
-        Map<String, Object> resourceAccess = jwt.getClaim("realm_access");
+        Map<String, Object> resourceAccess = jwt.getClaim("resource_access");
         log.info("realm_access: {}", resourceAccess);
 
         if (resourceAccess != null) {
-            List<String> roles = (List<String>) resourceAccess.get("roles");
+            Map<String, Object> clientAccess = (Map<String, Object>) resourceAccess.get("API_nutrition_front");
+
+            List<String> roles = (List<String>) clientAccess.get("roles");
+
             if (roles != null) {
                 roles.forEach(role -> authorities.add(new SimpleGrantedAuthority(role)));
             }

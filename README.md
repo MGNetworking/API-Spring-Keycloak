@@ -1,18 +1,37 @@
 # API Spring Keycloak
 
-This project is an example to implementation with Spring With Keycloak and Database H2
+User Management API with Profile Extension and Keycloak Integration
+This project is a secure RESTful API built with Spring Boot, designed to handle user account registration, role
+administration through Keycloak, and the extension of custom business data per user.
 
-NB: You can run the unit tests to get an idea of how the project works. But to use this project,
-you need a running Keycloak
+⚙️ Core Features
+
+1. User Management (UsersController)
+    * Registers users in Keycloak, which handles identity and authentication.
+    * Upon registration, custom business-related data is created and stored in the API's own database, associated with
+      the user’s unique ID from the Keycloak token.
+    * No personal identity data (name, email, password) is stored in the API; these are managed entirely within
+      Keycloak.
+    * The user’s Keycloak ID (sub from the JWT token) is used to link and manipulate business-related data.
+
+2. Administration Tools (AdminController)
+    * Allows administrators to retrieve and manage user roles at the realm or client level within Keycloak.
+    * Provides endpoints to assign/remove roles, enable/disable user accounts, and trigger password resets.
+    * Authorization is enforced using roles extracted from the JWT token issued by Keycloak.
+
+🔒 Security Model
+Authentication is managed by Keycloak, and all endpoints are protected by role-based access control
+(ROLE_USER_REALM, ROLE_ADMIN_REALM).
+The JWT token is used both for authorization and to resolve the identity of the business data owner.
 
 ### Sommaire
 
 * [Run projet](#run-projet)
 * [Run test](#run-test)
+* [Intellij Config](#intellij-config)
 * [Security Configuration](#security-configuration)
-* [Endpoints Principaux](#endpoints-principaux)
-    * [Gestion Utilisateurs](#gestion-utilisateurs)
-    * [Authentification](#authentification)
+* [Endpoints Main ](#endpoints-main)
+    * [User management](#user-management)
     * [Administration](#administration)
 * [Codes de Réponse HTTP](#codes-de-réponse-http)
 * [Maven Wrapper: How It Works](#maven-wrapper-how-it-works)
@@ -20,7 +39,6 @@ you need a running Keycloak
     * [How it works](#how-it-works)
     * [Benefits](#benefits)
     * [Common Usage](#common-usage)
-* [Explanation of Test Annotations](#-explanation-of-test-annotations)
 
 ## Run projet
 
@@ -29,13 +47,13 @@ Launch of Spring without profile
 * Linux :
 
 ````shell
-./mvnw spring-boot:run test -Dspring.profiles.active=test
+./mvnw spring-boot:run -Dspring-boot.run.profiles=test
 ````
 
 * Windows :
 
 ````bash
-./mvnw spring-boot:run test -D spring.profiles.active=test
+./mvnw spring-boot:run -D spring-boot.run.profiles=test
 ````
 
 ## Run test
@@ -61,6 +79,16 @@ Access browser:
 
 Database H2 password: ``password``
 
+## Intellij Config
+
+Here is the configuration required to launch the project in the Intellij IDE
+
+![Mon image](img/intellij-config-01.png)
+
+Here is an example of the configuration required to launch a test in the Intellij IDE
+
+![Mon image](img/intellij-config-02.png)
+
 ## Security Configuration
 
 Security is managed through the `SecurityConfig` class, with the following features:
@@ -72,9 +100,9 @@ Security is managed through the `SecurityConfig` class, with the following featu
     - Access to `/api/v1/admin/**` is restricted to users with the `ROLE_ADMIN` authority.
     - Authentication is required for all other endpoints.
 
-## Endpoints Principaux
+## Endpoints Main
 
-### Gestion Utilisateurs
+### User management
 
 * class : UsersController
 
@@ -88,25 +116,7 @@ Security is managed through the `SecurityConfig` class, with the following featu
 📝 Description:
 This controller manages user accounts. It allows anyone to register a new user, authenticated users to update or
 retrieve their profile, and administrators to delete users.
-Each action is protected by appropriate role-based access control (`ROLE_USER`, `ROLE_ADMIN`).
-
-### Authentification
-
-* class : AuthController
-
-| Endpoint             | Méthode | Description            | Rôle Requis  | Codes Réponse                |
-|----------------------|---------|------------------------|--------------|------------------------------|
-| /api/v1/auth/login   | POST    | Connexion (JWT)        | PUBLIC (all) | 200, 400, 401, 403, 404, 500 |
-| /api/v1/auth/logout  | POST    | Déconnexion            | ROLE_USER    | 200, 400, 401, 403, 404, 500 |
-| /api/v1/auth/refresh | POST    | Rafraîchissement token | ROLE_USER    | 200, 400, 401, 403, 404, 500 |
-
-📝 Description:
-
-This controller handles authentication using Keycloak.
-
-* `/login` issues a JWT token when the user provides valid credentials.
-* `/logout` invalidates the user session in Keycloak.
-* `/refresh` provides a new access token using a valid refresh token.
+Each action is protected by appropriate role-based access control (`ROLE_USER_REALM`, `ROLE_ADMIN_REALM`).
 
 ### Administration
 
@@ -189,33 +199,3 @@ mvnw.cmd clean install
 
 In a Spring development environment, you'll still need to install a JDK, but not necessarily Maven thanks to the
 wrapper.
-
-## Explanation of Test Annotations
-
-Below are the main annotations used when testing Spring Boot controllers with `MockMvc`:
-
-### `@WebMvcTest(UsersController.class)`
-
-- Used to test only the **web layer (Controller)**.
-- It does **not** load service (`@Service`) or repository (`@Repository`) beans.
-- Ideal for testing HTTP endpoints in isolation without starting the full application context.
-
-### `@ActiveProfiles("test")`
-
-- Activates a specific Spring profile (`test` in this case).
-- Useful for loading a dedicated configuration (`application-test.yml`) or customizing behavior during tests.
-
-### `@AutoConfigureMockMvc(addFilters = false)`
-
-- Automatically configures a `MockMvc` bean to simulate HTTP requests.
-- The `addFilters = false` option disables **security filters** (e.g., Spring Security filters), making it easier to
-  test controllers without authentication.
-
-### `@TestPropertySource(properties = {"spring.sql.init.mode=never"})`
-
-- Overrides specific configuration properties during test execution.
-- In this case, disables automatic SQL database initialization by Spring Boot during tests.
-
----
-
-These annotations, when combined, allow you to write fast, isolated, and database-independent controller tests.

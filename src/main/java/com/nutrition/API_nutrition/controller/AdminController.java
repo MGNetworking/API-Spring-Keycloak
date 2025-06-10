@@ -1,5 +1,6 @@
 package com.nutrition.API_nutrition.controller;
 
+import com.nutrition.API_nutrition.model.dto.UserWithRolesDto;
 import com.nutrition.API_nutrition.model.response.GenericApiErrorResponse;
 import com.nutrition.API_nutrition.model.response.GenericApiResponse;
 import com.nutrition.API_nutrition.service.KeycloakService;
@@ -12,6 +13,7 @@ import io.swagger.v3.oas.annotations.tags.Tag;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.keycloak.representations.idm.RoleRepresentation;
+import org.keycloak.representations.idm.UserRepresentation;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
@@ -35,19 +37,23 @@ public class AdminController {
 
     // Récupération des rôles
     public static final String GET_REALM_ROLES = "/roles/realm";
-    public static final String GET_CLIENT_ROLES = "/roles/client";
+    public static final String GET_CLIENT_ROLES = "/roles/client/{targetClient}";
 
-    // Ajout de rôles à un utilisateur
+    // liste des utilisateurs et de leur role
+    public static final String GET_ALL_USERS = "/users";
+    public static final String GET_LIST_ROLE_CLIENT = "/user/{userId}/{targetClient}";
+
+    // gestion des roles utilisateur sur domaine client
+    public static final String ADD_USER_ROLE_CLIENT = "/user/{userId}/roles/client/{targetClient}";
+    public static final String REMOVE_USER_ROLE_CLIENT = "/user/{userId}/roles/client/{targetClient}";
+
+    // gestion des roles utilisateur sur domaine uniquement
     public static final String ADD_REALM_ROLE_TO_USER = "/users/{userId}/roles/realm";
-    public static final String ADD_CLIENT_ROLE_TO_USER = "/users/{userId}/roles/client";
-
-    // Suppression de rôles d’un utilisateur
     public static final String REMOVE_REALM_ROLE_FROM_USER = "/users/{userId}/roles/realm";
-    public static final String REMOVE_CLIENT_ROLE_FROM_USER = "/users/{userId}/roles/client";
 
     private final KeycloakService keycloakService;
 
-    @Tag(name = "Rôles",
+    @Tag(name = "Rôles Realm",
             description = "Opérations liées à la récupération des rôles disponibles dans le realm"
     )
     @Operation(
@@ -69,7 +75,6 @@ public class AdminController {
                     content = @Content(schema = @Schema(implementation = GenericApiErrorResponse.class))),
     })
     @GetMapping(value = GET_REALM_ROLES)
-    @PreAuthorize("@accessKeycloak.hasAccessToUser(#userDto.keycloakId)")
     public ResponseEntity<GenericApiResponse<List<RoleRepresentation>>> getListRolesRealm() {
 
         return ResponseEntity
@@ -108,8 +113,9 @@ public class AdminController {
                     content = @Content(schema = @Schema(implementation = GenericApiErrorResponse.class)))
     })
     @GetMapping(value = GET_CLIENT_ROLES)
-    @PreAuthorize("@accessKeycloak.hasAccessToUser(#userDto.keycloakId)")
-    public ResponseEntity<GenericApiResponse<List<RoleRepresentation>>> getListRolesClient() {
+    public ResponseEntity<GenericApiResponse<List<RoleRepresentation>>> getListRolesClient(
+            @PathVariable String targetClient
+    ) {
 
         return ResponseEntity
                 .status(HttpStatus.OK)
@@ -118,7 +124,83 @@ public class AdminController {
                         HttpStatus.OK.value(),
                         "The user was Successfully create",
                         BASE_ADMIN + GET_CLIENT_ROLES,
-                        this.keycloakService.getClientScopedRoles()
+                        this.keycloakService.getClientScopedRoles(targetClient)
+                ));
+
+    }
+
+    @Tag(name = "Liste des utilisateurs",
+            description = "Opérations liées à la récupération de la liste des utilisateurs disponibles dans le client"
+    )
+    @Operation(
+            summary = "Récupérer la liste des utilisateurs disponibles dans le client cible",
+            description = "Permet de récupérer la liste des utilisateurs disponibles dans le client cible"
+    )
+    @ApiResponses(value = {
+            @ApiResponse(responseCode = "200",
+                    description = "Liste des utilisateurs récupérée avec succès",
+                    content = @Content(schema = @Schema(implementation = GenericApiResponse.class))),
+            @ApiResponse(responseCode = "401",
+                    description = "Non autorisé (token expiré ou manquant)",
+                    content = @Content(schema = @Schema(implementation = GenericApiErrorResponse.class))),
+            @ApiResponse(responseCode = "403",
+                    description = "Accès interdit",
+                    content = @Content(schema = @Schema(implementation = GenericApiErrorResponse.class))),
+            @ApiResponse(responseCode = "500",
+                    description = "Erreur technique inattendue",
+                    content = @Content(schema = @Schema(implementation = GenericApiErrorResponse.class))),
+    })
+    @GetMapping(value = GET_ALL_USERS)
+    public ResponseEntity<GenericApiResponse<List<UserRepresentation>>> getListUserClient() {
+
+        return ResponseEntity
+                .status(HttpStatus.OK)
+                .body(new GenericApiResponse<List<UserRepresentation>>(
+                        HttpStatus.OK,
+                        HttpStatus.OK.value(),
+                        "List of roles successfully retrieved",
+                        BASE_ADMIN + GET_REALM_ROLES,
+                        this.keycloakService.getListRoleClient()
+                ));
+
+    }
+
+    @Tag(name = "Liste des roles utilisateurs",
+            description = "Opérations liées à la récupération de la liste des roles utilisateurs " +
+                    "disponibles sur le client cible"
+    )
+    @Operation(
+            summary = "Récupérer la liste des roles utilisateurs disponibles  sur le client cible",
+            description = "Permet de récupérer la liste des roles des utilisateurs disponibles  sur le client cible"
+    )
+    @ApiResponses(value = {
+            @ApiResponse(responseCode = "200",
+                    description = "Liste des roles utilisateurs récupérée avec succès",
+                    content = @Content(schema = @Schema(implementation = GenericApiResponse.class))),
+            @ApiResponse(responseCode = "401",
+                    description = "Non autorisé (token expiré ou manquant)",
+                    content = @Content(schema = @Schema(implementation = GenericApiErrorResponse.class))),
+            @ApiResponse(responseCode = "403",
+                    description = "Accès interdit",
+                    content = @Content(schema = @Schema(implementation = GenericApiErrorResponse.class))),
+            @ApiResponse(responseCode = "500",
+                    description = "Erreur technique inattendue",
+                    content = @Content(schema = @Schema(implementation = GenericApiErrorResponse.class))),
+    })
+    @GetMapping(value = GET_LIST_ROLE_CLIENT)
+    public ResponseEntity<GenericApiResponse<UserWithRolesDto>> getUserClient(
+            @PathVariable String userId,
+            @PathVariable String targetClient
+    ) {
+
+        return ResponseEntity
+                .status(HttpStatus.OK)
+                .body(new GenericApiResponse<UserWithRolesDto>(
+                        HttpStatus.OK,
+                        HttpStatus.OK.value(),
+                        "List of roles successfully retrieved",
+                        BASE_ADMIN + GET_REALM_ROLES,
+                        this.keycloakService.getUserWithRoles(userId, targetClient)
                 ));
 
     }
@@ -207,10 +289,10 @@ public class AdminController {
                     description = "Erreur technique inattendue",
                     content = @Content(schema = @Schema(implementation = GenericApiErrorResponse.class))),
     })
-    @PostMapping(value = ADD_CLIENT_ROLE_TO_USER)
-    @PreAuthorize("@accessKeycloak.hasAccessToUser(#userDto.keycloakId)")
+    @PostMapping(value = ADD_USER_ROLE_CLIENT)
     public ResponseEntity<GenericApiResponse<Void>> addUserRolesClient(
             @PathVariable String userId,
+            @PathVariable String targetClient,
             @RequestBody List<RoleRepresentation> roleRepresentations
     ) {
 
@@ -222,7 +304,7 @@ public class AdminController {
             return validationResponse.get();
         }
 
-        this.keycloakService.addUserRolesClient(userId, roleRepresentations);
+        this.keycloakService.addUserRolesClient(userId, targetClient, roleRepresentations);
 
         return ResponseEntity
                 .status(HttpStatus.NO_CONTENT)
@@ -230,7 +312,7 @@ public class AdminController {
                         HttpStatus.NO_CONTENT,
                         HttpStatus.NO_CONTENT.value(),
                         "The client roles have been successfully assigned to the user.",
-                        BASE_ADMIN + ADD_CLIENT_ROLE_TO_USER,
+                        BASE_ADMIN + ADD_USER_ROLE_CLIENT,
                         null
                 ));
     }
@@ -255,7 +337,6 @@ public class AdminController {
                     content = @Content(schema = @Schema(implementation = GenericApiErrorResponse.class))),
     })
     @DeleteMapping(value = REMOVE_REALM_ROLE_FROM_USER)
-    @PreAuthorize("@accessKeycloak.hasAccessToUser(#userDto.keycloakId)")
     public ResponseEntity<GenericApiResponse<Void>> deleteRoleRealm(
             @PathVariable String userId,
             @RequestBody List<RoleRepresentation> roleRepresentations
@@ -308,10 +389,10 @@ public class AdminController {
                     description = "Erreur technique inattendue",
                     content = @Content(schema = @Schema(implementation = GenericApiErrorResponse.class))),
     })
-    @DeleteMapping(value = REMOVE_CLIENT_ROLE_FROM_USER)
-    @PreAuthorize("@accessKeycloak.hasAccessToUser(#userDto.keycloakId)")
+    @DeleteMapping(value = REMOVE_USER_ROLE_CLIENT)
     public ResponseEntity<GenericApiResponse<Void>> deleteRoleClient(
             @PathVariable String userId,
+            @PathVariable String targetClient,
             @RequestBody List<RoleRepresentation> roleRepresentations
     ) {
 
@@ -323,7 +404,7 @@ public class AdminController {
             return validationResponse.get();
         }
 
-        this.keycloakService.removeClientRoleFromUser(userId, roleRepresentations);
+        this.keycloakService.removeClientRoleFromUser(userId,targetClient, roleRepresentations);
 
         return ResponseEntity
                 .status(HttpStatus.NO_CONTENT)
@@ -331,7 +412,7 @@ public class AdminController {
                         HttpStatus.NO_CONTENT,
                         HttpStatus.NO_CONTENT.value(),
                         "The user was Successfully create",
-                        BASE_ADMIN + REMOVE_CLIENT_ROLE_FROM_USER,
+                        BASE_ADMIN + REMOVE_USER_ROLE_CLIENT,
                         null
                 ));
     }

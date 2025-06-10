@@ -56,12 +56,13 @@ class AdminControllerTest {
     @DisplayName("getListRolesClient: récupérer la list des Role client")
     public void testGetListRolesClient() {
         // Arrange
+        String targetClient = "API_nutrition_front";
         List<RoleRepresentation> mockRoles = Arrays.asList(new RoleRepresentation(), new RoleRepresentation());
         when(keycloakService.getClientScopedRoles()).thenReturn(mockRoles);
 
         // Act
         ResponseEntity<GenericApiResponse<List<RoleRepresentation>>> response = adminController
-                .getListRolesClient();
+                .getListRolesClient(targetClient);
 
         // Assert
         assertThat(response.getStatusCode()).isEqualTo(HttpStatus.OK);
@@ -148,11 +149,12 @@ class AdminControllerTest {
     public void testAddUserRolesClient_validInput() {
         // Arrange
         String userId = "user123";
+        String targetClient = "API_nutrition_Fact";
         List<RoleRepresentation> roles = Arrays.asList(new RoleRepresentation());
 
         // Act
         ResponseEntity<GenericApiResponse<Void>> response = adminController
-                .addUserRolesClient(userId, roles);
+                .addUserRolesClient(userId, targetClient, roles);
 
         // Assert
         assertThat(response.getStatusCode()).isEqualTo(HttpStatus.NO_CONTENT);
@@ -168,11 +170,12 @@ class AdminControllerTest {
     void addUserRolesClient_ShouldReturnBadRequest_WhenUserIdIsEmpty() {
         // Arrange
         String userId = ""; // UserId vide
+        String targetClient = "API_nutrition_Fact";
         List<RoleRepresentation> roles = Arrays.asList(new RoleRepresentation());
 
         // Act
         ResponseEntity<GenericApiResponse<Void>> response =
-                adminController.addUserRolesClient(userId, roles);
+                adminController.addUserRolesClient(userId, targetClient, roles);
 
         // Assert
         assertThat(response.getStatusCode()).isEqualTo(HttpStatus.BAD_REQUEST);
@@ -188,11 +191,12 @@ class AdminControllerTest {
     void addUserRolesClient_ShouldReturnBadRequest_WhenRolesListIsEmpty() {
         // Arrange
         String userId = "user123";
+        String targetClient = "API_nutrition_Fact";
         List<RoleRepresentation> roles = Collections.emptyList(); // Liste vide
 
         // Act
         ResponseEntity<GenericApiResponse<Void>> response =
-                adminController.addUserRolesClient(userId, roles);
+                adminController.addUserRolesClient(userId, targetClient, roles);
 
         // Assert
         assertThat(response.getStatusCode()).isEqualTo(HttpStatus.BAD_REQUEST);
@@ -269,17 +273,18 @@ class AdminControllerTest {
     public void testDeleteClientRole_validInput() {
         // Arrange
         String userId = "user123";
+        String targetClient = "API_nutrition_Fact";
         List<RoleRepresentation> roles = Arrays.asList(new RoleRepresentation());
 
         // Act
         ResponseEntity<GenericApiResponse<Void>> response = adminController
-                .deleteRoleClient(userId, roles);
+                .deleteRoleClient(userId, targetClient, roles);
 
         // Assert
         assertThat(response.getStatusCode()).isEqualTo(HttpStatus.NO_CONTENT);
         assertThat(response.getBody()).isNotNull();
         verify(keycloakService, times(1))
-                .removeClientRoleFromUser(userId, roles);
+                .removeClientRoleFromUser(userId, targetClient, roles);
     }
 
     @Test
@@ -287,11 +292,12 @@ class AdminControllerTest {
     void deleteRoleClient_ShouldReturnBadRequest_WhenUserIdIsEmpty() {
         // Arrange
         String userId = "";
+        String targetClient = "API_nutrition_Fact";
         List<RoleRepresentation> roles = Arrays.asList(new RoleRepresentation());
 
         // Act
         ResponseEntity<GenericApiResponse<Void>> response =
-                adminController.deleteRoleClient(userId, roles);
+                adminController.deleteRoleClient(userId, targetClient, roles);
 
         // Assert
         assertThat(response.getStatusCode()).isEqualTo(HttpStatus.BAD_REQUEST);
@@ -307,11 +313,12 @@ class AdminControllerTest {
     void deleteRoleClient_ShouldReturnBadRequest_WhenRolesListIsEmpty() {
         // Arrange
         String userId = "user123";
+        String targetClient = "API_nutrition_Fact";
         List<RoleRepresentation> roles = Collections.emptyList();
 
         // Act
         ResponseEntity<GenericApiResponse<Void>> response =
-                adminController.deleteRoleClient(userId, roles);
+                adminController.deleteRoleClient(userId, targetClient, roles);
 
         // Assert
         assertThat(response.getStatusCode()).isEqualTo(HttpStatus.BAD_REQUEST);

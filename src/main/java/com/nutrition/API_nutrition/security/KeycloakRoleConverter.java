@@ -20,7 +20,7 @@ public class KeycloakRoleConverter implements Converter<Jwt, Collection<GrantedA
         Collection<GrantedAuthority> authorities = new ArrayList<>();
 
         Map<String, Object> resourceAccess = jwt.getClaim("resource_access");
-        log.info("realm_access: {}", resourceAccess);
+        log.debug("realm_access: {}", resourceAccess);
 
         if (resourceAccess != null) {
             Map<String, Object> clientAccess = (Map<String, Object>) resourceAccess.get("API_nutrition_front");
@@ -32,7 +32,7 @@ public class KeycloakRoleConverter implements Converter<Jwt, Collection<GrantedA
             }
         }
 
-        log.info("Authorities list: {}", authorities);
+        log.debug("Authorities list: {}", authorities);
         return authorities;
     }
 }

@@ -67,12 +67,11 @@ public class KeycloakProvider {
 
 
     public void logKeycloakConfig() {
-        log.info("Keycloak Configuration");
-        log.info("Server URL: {}", authServerUrl);
-        log.info("Master Realm: {}", realm);
-        log.info("Application Realm: {}", realm);
-        log.info("Client ID: {}", clientId);
-        log.info("Client Secret is set: {}", clientSecret != null && !clientSecret.isEmpty());
+        log.debug("Keycloak Configuration");
+        log.debug("Server URL: {}", authServerUrl);
+        log.debug("Master Realm: {}", realm);
+        log.debug("Client ID: {}", clientId);
+        log.debug("Client Secret is set: {}", clientSecret != null && !clientSecret.isEmpty());
     }
 }
 

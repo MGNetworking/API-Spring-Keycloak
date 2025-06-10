@@ -210,6 +210,12 @@ public class KeycloakService {
      */
     public void removeRealmRoleFromUser(String userId, List<RoleRepresentation> roleRepresentations) {
 
+        if (roleRepresentations == null || roleRepresentations.isEmpty()) {
+            throw new ApiException("No roles to assign",
+                    HttpStatus.BAD_REQUEST,
+                    ErrorCode.USER_ROLE_ASSIGNMENT_FAILED.toString());
+        }
+
         getKc().realm(getRealm())
                 .users()
                 .get(userId)
@@ -222,6 +228,12 @@ public class KeycloakService {
      * Delete role client
      */
     public void removeClientRoleFromUser(String userId, String targetClient, List<RoleRepresentation> roleRepresentations) {
+
+        if (roleRepresentations == null || roleRepresentations.isEmpty()) {
+            throw new ApiException("No roles to assign",
+                    HttpStatus.BAD_REQUEST,
+                    ErrorCode.USER_ROLE_ASSIGNMENT_FAILED.toString());
+        }
 
         getKc().realm(getRealm())
                 .users()

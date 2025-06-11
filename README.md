@@ -108,38 +108,36 @@ Security is managed through the `SecurityConfig` class, with the following featu
 
 | Endpoint               | Méthode | Description              | Rôle Requis | Codes Réponse                     |
 |------------------------|---------|--------------------------|-------------|-----------------------------------|
-| /api/v1/users/register | POST    | Création d'utilisateur   | PUBLIC      | 201, 400, 401, 403, 409, 500      |
-| /api/v1/users/user     | PUT     | Mise à jour utilisateur  | ROLE_USER   | 200, 400, 401, 403, 404, 500      |
-| /api/v1/users/{id}     | DELETE  | Suppression utilisateur  | ROLE_USER   | 204, 400, 401, 403, 404, 409, 500 |
-| /api/v1/users/{id}     | GET     | Récupération utilisateur | ROLE_USER   | 200, 400, 401, 403, 404, 500      |
+| /api/v1/users/register | POST    | Création d'utilisateur   | ROLE_BASIC  | 201, 400, 401, 403, 409, 500      |
+| /api/v1/users/user     | PUT     | Mise à jour utilisateur  | ROLE_BASIC  | 200, 400, 401, 403, 404, 500      |
+| /api/v1/users/{id}     | DELETE  | Suppression utilisateur  | ROLE_BASIC  | 204, 400, 401, 403, 404, 409, 500 |
+| /api/v1/users/{id}     | GET     | Récupération utilisateur | ROLE_BASIC  | 200, 400, 401, 403, 404, 500      |
 
 📝 Description:
-This controller manages user accounts. It allows anyone to register a new user, authenticated users to update or
-retrieve their profile, and administrators to delete users.
-Each action is protected by appropriate role-based access control (`ROLE_USER_REALM`, `ROLE_ADMIN_REALM`).
+This controller manages the business data associated with a user.
+It can only be accessed after authentication via Keycloak, guaranteeing secure operations. It can be used to add,
+modify, delete and view data linked to the logged-in user. Each action is protected by appropriate role-based access
+control (`ROLE_BASIC`).
 
 ### Administration
 
-* class : AdminController
+* class: AdminController
 
-| Endpoint                                  | Méthode | Description                                                              | Rôle Requis | Codes Réponse                |
-|-------------------------------------------|---------|--------------------------------------------------------------------------|-------------|------------------------------|
-| /api/v1/admin/roles/realm                 | GET     | Opérations liées à la récupération des rôles disponibles dans le realm   | ROLE_ADMIN  | 200, 401, 403,  500          |
-| /api/v1/admin/roles/client                | GET     | Opérations liées à la récupération des rôles d’un client Keycloak        | ROLE_ADMIN  | 200, 401, 403,  500          |
-| /api/v1/admin/users/{userId}/roles/realm  | POST    | Opérations d'ajout de rôles à un utilisateur dans le realm               | ROLE_ADMIN  | 204, 400, 401, 403, 404, 500 |
-| /api/v1/admin/users/{userId}/roles/client | POST    | Opérations d'ajout de rôles à un utilisateur dans une sous domain client | ROLE_ADMIN  | 204, 400, 401, 403, 404, 500 |
-| /api/v1/admin/deleteRoleRealm             | DELETE  | Supprime des rôles Realm à un utilisateur                                | ROLE_ADMIN  | 204, 400, 401, 403, 404, 500 |
-| /api/v1/admin/deleteRoleClient            | DELETE  | Supprime des rôles client d’un utilisateur                               | ROLE_ADMIN  | 204, 400, 401, 403, 404, 500 |
+| Endpoint                                                | Méthode | Description                                                 | Rôle Requis      | Codes Réponse                |
+|---------------------------------------------------------|---------|-------------------------------------------------------------|------------------|------------------------------|
+| /api/v1/admin/users                                     | GET     | Lists all users registered in the Keycloak realm.           | ROLE_ADMIN_FRONT | 200, 401, 403,  500          |
+| /api/v1/admin/roles/realm                               | GET     | List of client roles on configured domains                  | ROLE_ADMIN_FRONT | 200, 401, 403,  500          |
+| /api/v1/admin/roles/client/{targetClient}               | GET     | list of any client roles configured on the targeted domains | ROLE_ADMIN_FRONT | 204, 400, 401, 403, 404, 500 |
+| /api/v1/admin/user/{userId}/{targetClient}              | GET     | list of user roles on the targeted client                   | ROLE_ADMIN_FRONT | 204, 400, 401, 403, 404, 500 |
+| /api/v1/admin/user/{userId}/roles/client/{targetClient} | POST    | Add roles to user on the targeted client                    | ROLE_ADMIN_FRONT | 204, 400, 401, 403, 404, 500 |
+| /api/v1/admin/user/{userId}/roles/client/{targetClient} | DELETE  | Removal of the user's role on the targeted client           | ROLE_ADMIN_FRONT | 204, 400, 401, 403, 404, 500 |
+| /api/v1/admin/users/{userId}/roles/realm                | POST    | Add role to user on targeted domain                         | ROLE_ADMIN_FRONT | 204, 400, 401, 403, 404, 500 |
+| /api/v1/admin/users/{userId}/roles/realm                | DELETE  | removal of the user's role on the targeted domain           | ROLE_ADMIN_FRONT | 204, 400, 401, 403, 404, 500 |
 
 📝 Description:
 
-This controller provides administrative tools for managing Keycloak users.
-
-* `/users` lists all users registered in the Keycloak realm.
-* `/users/{id}` allows editing user profile details (name, email, etc.).
-* `/users/roles` updates a user's role assignments (e.g., adding/removing `ROLE_USER`, `ROLE_ADMIN`).
-* `/users/enable` enables or disables a user's Keycloak account.
-* `/reset-password` forces a password reset with a new password, optionally marking it as temporary.
+This controller provides administrative tools for managing user roles in Keycloak. Each action is protected by
+appropriate role-based access control (`ROLE_ADMIN_FRONT`).
 
 ## Codes de Réponse HTTP
 

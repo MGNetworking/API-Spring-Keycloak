@@ -106,12 +106,12 @@ Security is managed through the `SecurityConfig` class, with the following featu
 
 * class : UsersController
 
-| Endpoint               | Méthode | Description              | Rôle Requis | Codes Réponse                     |
-|------------------------|---------|--------------------------|-------------|-----------------------------------|
-| /api/v1/users/register | POST    | Création d'utilisateur   | ROLE_BASIC  | 201, 400, 401, 403, 409, 500      |
-| /api/v1/users/user     | PUT     | Mise à jour utilisateur  | ROLE_BASIC  | 200, 400, 401, 403, 404, 500      |
-| /api/v1/users/{id}     | DELETE  | Suppression utilisateur  | ROLE_BASIC  | 204, 400, 401, 403, 404, 409, 500 |
-| /api/v1/users/{id}     | GET     | Récupération utilisateur | ROLE_BASIC  | 200, 400, 401, 403, 404, 500      |
+| Endpoint               | Méthode | Description   | Rôle Requis | Codes Réponse                     |
+|------------------------|---------|---------------|-------------|-----------------------------------|
+| /api/v1/users/register | POST    | User creation | ROLE_BASIC  | 201, 400, 401, 403, 409, 500      |
+| /api/v1/users/user     | PUT     | User update   | ROLE_BASIC  | 200, 400, 401, 403, 404, 500      |
+| /api/v1/users/{id}     | DELETE  | User deletion | ROLE_BASIC  | 204, 400, 401, 403, 404, 409, 500 |
+| /api/v1/users/{id}     | GET     | User recovery | ROLE_BASIC  | 200, 400, 401, 403, 404, 500      |
 
 📝 Description:
 This controller manages the business data associated with a user.

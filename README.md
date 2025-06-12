@@ -34,11 +34,13 @@ The JWT token is used both for authorization and to resolve the identity of the 
     * [User management](#user-management)
     * [Administration](#administration)
 * [Codes de Réponse HTTP](#codes-de-réponse-http)
+* [Docker](#docker)
+  * [Commandes utiles](#commandes-utiles)
 * [Maven Wrapper: How It Works](#maven-wrapper-how-it-works)
     * [What is Maven Wrapper?](#what-is-maven-wrapper)
     * [How it works](#how-it-works)
     * [Benefits](#benefits)
-    * [Common Usage](#common-usage)
+    * [Common Usage](#common-usage) 
 
 ## Run projet
 
@@ -153,6 +155,35 @@ The API uses the following standard HTTP status codes:
 | 404  | **Not Found** - The requested resource does not exist                            |
 | 409  | **Conflict** - The request cannot be processed due to a conflict (ex: duplicate) |
 | 500  | **Internal Server Error** - Unexpected server-side error                         |
+
+## Docker
+
+### Commandes utiles
+
+Image build
+````shell
+docker build -t api-nutrition:latest .
+````
+
+run image
+````shell
+# Afficher les logs dans le terminale de lancement
+docker run --name api-nutrition -p 8080:8080 -e SPRING_PROFILES_ACTIVE=test api-nutrition:latest
+
+# en mode détacher
+docker run -d --name api-nutrition -p 8080:8080 -e SPRING_PROFILES_ACTIVE=test api-nutrition:latest
+````
+
+Logs images
+````shell
+docker logs -f api-nutrition
+````
+
+Stop and remove
+````shell
+docker stop api-nutrition && docker rm api-nutrition
+````
+
 
 ## Maven Wrapper: How It Works
 

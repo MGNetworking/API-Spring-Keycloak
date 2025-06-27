@@ -2,17 +2,21 @@ package com.nutrition.API_nutrition.security;
 
 import jakarta.ws.rs.HttpMethod;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
-import org.springframework.security.config.Customizer;
+import org.springframework.http.client.SimpleClientHttpRequestFactory;
 import org.springframework.security.config.annotation.method.configuration.EnableMethodSecurity;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 import org.springframework.security.config.annotation.web.configuration.EnableWebSecurity;
 import org.springframework.security.config.annotation.web.configurers.AbstractHttpConfigurer;
 import org.springframework.security.config.annotation.web.configurers.HeadersConfigurer;
 import org.springframework.security.config.http.SessionCreationPolicy;
+import org.springframework.security.oauth2.jwt.JwtDecoder;
+import org.springframework.security.oauth2.jwt.NimbusJwtDecoder;
 import org.springframework.security.oauth2.server.resource.authentication.JwtAuthenticationConverter;
 import org.springframework.security.web.SecurityFilterChain;
+import org.springframework.web.client.RestTemplate;
 
 import static com.nutrition.API_nutrition.controller.UsersController.*;
 
@@ -24,7 +28,10 @@ import static com.nutrition.API_nutrition.controller.UsersController.*;
 @Configuration
 @EnableWebSecurity
 @EnableMethodSecurity // Active les annotations @PreAuthorize, @PostAuthorize,
-public class SecurityConfig  {
+public class SecurityConfig {
+
+    @Value("${spring.security.oauth2.resourceserver.jwt.jwk-set-uri}")
+    private String jwkSetUri;
 
     /**
      * Lorsqu'une requête HTTP arrive à votre application :
@@ -47,7 +54,7 @@ public class SecurityConfig  {
      * </ul>
      */
     @Bean
-    public SecurityFilterChain securityFilterChain(HttpSecurity http, CustomAuthenticationEntryPoint customEntryPoint ) throws Exception {
+    public SecurityFilterChain securityFilterChain(HttpSecurity http, CustomAuthenticationEntryPoint customEntryPoint) throws Exception {
         log.info("Chargement de SecurityFilterChain...");
         return http
                 .csrf(AbstractHttpConfigurer::disable) // Pour une API REST
@@ -59,6 +66,7 @@ public class SecurityConfig  {
 
                         // Public
                         .requestMatchers(
+                                "/actuator/**",
                                 "/h2-console/**",
                                 "/swagger-ui/**",
                                 "/v3/api-docs/**",
@@ -79,8 +87,9 @@ public class SecurityConfig  {
                         .anyRequest().authenticated()
                 )
                 .oauth2ResourceServer(
-                        oauth2 -> oauth2.jwt(jwt -> jwt.jwtAuthenticationConverter(jwtAuthenticationConverter()))
-                )                .exceptionHandling(exception -> exception
+                        oauth2 -> oauth2
+                                .jwt(jwt -> jwt.jwtAuthenticationConverter(jwtAuthenticationConverter()))
+                ).exceptionHandling(exception -> exception
                         .authenticationEntryPoint(customEntryPoint)
                 ).build();
     }
@@ -108,6 +117,23 @@ public class SecurityConfig  {
         JwtAuthenticationConverter converter = new JwtAuthenticationConverter();
         converter.setJwtGrantedAuthoritiesConverter(new KeycloakRoleConverter());
         return converter;
+    }
+
+    @Bean
+    public RestTemplate restTemplate() {
+        log.info("Configuration du RestTemplate avec timeout réduit ...");
+        SimpleClientHttpRequestFactory factory = new SimpleClientHttpRequestFactory();
+        factory.setConnectTimeout(3000); // 3 secondes
+        factory.setReadTimeout(3000);    // 3 secondes
+        return new RestTemplate(factory);
+    }
+
+    @Bean
+    public JwtDecoder jwtDecoder(RestTemplate restTemplate) {
+        log.info("Configuration du JwtDecoder avec jwk-set-uri : {}", jwkSetUri);
+        return NimbusJwtDecoder.withJwkSetUri(this.jwkSetUri)
+                .restOperations(restTemplate)
+                .build();
     }
 
 }

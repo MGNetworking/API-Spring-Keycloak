@@ -1,0 +1,18 @@
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: api-nutrition-ingress
+  namespace: default
+spec:
+  ingressClassName: nginx
+  rules:
+    - host: nutrition.local
+      http:
+        paths:
+          - path: /
+            pathType: Prefix
+            backend:
+              service:
+                name: api-nutrition
+                port:
+                  number: 8080

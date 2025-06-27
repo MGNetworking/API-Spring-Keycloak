@@ -1,0 +1,41 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: api-nutrition
+  labels:
+    app: api-nutrition
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: api-nutrition
+  template:
+    metadata:
+      labels:
+        app: api-nutrition
+    spec:
+      containers:
+        - name: api-nutrition
+          image: ghmaxime88/api-nutrition:latest
+          imagePullPolicy: Always
+          ports:
+            - containerPort: 8080
+          env:
+            - name: SPRING_PROFILES_ACTIVE
+              value: "test"
+          livenessProbe:
+            httpGet:
+              path: /actuator/health/liveness
+              port: 8080
+            initialDelaySeconds: 90
+            timeoutSeconds: 3
+            periodSeconds: 10
+            failureThreshold: 5
+          readinessProbe:
+            httpGet:
+              path: /actuator/health/readiness
+              port: 8080
+            initialDelaySeconds: 90
+            timeoutSeconds: 3
+            periodSeconds: 10
+            failureThreshold: 5

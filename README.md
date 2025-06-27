@@ -35,12 +35,16 @@ The JWT token is used both for authorization and to resolve the identity of the 
     * [Administration](#administration)
 * [Codes de Réponse HTTP](#codes-de-réponse-http)
 * [Docker](#docker)
-  * [Commandes utiles](#commandes-utiles)
+    * [Useful commands](#useful-commands)
+    * [kubernetes](#kubernetes)
+        * [Development Script ](#development-script)
+        * [kubernetes configuration](#kubernetes-configuration)
+        * [kubernetes](#kubernetes-deployment-in-the-minikube-cluster)
 * [Maven Wrapper: How It Works](#maven-wrapper-how-it-works)
     * [What is Maven Wrapper?](#what-is-maven-wrapper)
     * [How it works](#how-it-works)
     * [Benefits](#benefits)
-    * [Common Usage](#common-usage) 
+    * [Common Usage](#common-usage)
 
 ## Run projet
 
@@ -106,7 +110,7 @@ Security is managed through the `SecurityConfig` class, with the following featu
 
 ### User management
 
-* class : UsersController
+* class: UsersController
 
 | Endpoint               | Méthode | Description   | Rôle Requis | Codes Réponse                     |
 |------------------------|---------|---------------|-------------|-----------------------------------|
@@ -158,32 +162,232 @@ The API uses the following standard HTTP status codes:
 
 ## Docker
 
-### Commandes utiles
+### Useful commands
 
-Image build
+Below are example commands to build and run the Docker image of the project in a `PowerShell` or similar terminal.
+
 ````shell
 docker build -t api-nutrition:latest .
-````
 
-run image
-````shell
-# Afficher les logs dans le terminale de lancement
+# Display logs in the launch terminal
 docker run --name api-nutrition -p 8080:8080 -e SPRING_PROFILES_ACTIVE=test api-nutrition:latest
 
-# en mode détacher
+# detach mode
 docker run -d --name api-nutrition -p 8080:8080 -e SPRING_PROFILES_ACTIVE=test api-nutrition:latest
 ````
 
-Logs images
+Container Management Commands
+
 ````shell
+# View container logs in real-time
 docker logs -f api-nutrition
-````
 
-Stop and remove
-````shell
+# Start an existing container
+docker start api-nutrition
+
+# Stop and remove a container
 docker stop api-nutrition && docker rm api-nutrition
+
+# Remove Docker images
+docker rmi api-nutrition:latest
+docker rmi ghmaxime88/api-nutrition:latest
 ````
 
+Push to a Docker Repository
+
+1. Log in to Docker Hub
+
+````shell
+docker login
+````
+
+2. Tag the Image
+
+````shell
+# Format: docker tag <local-image:tag> <username>/<repository:tag>
+docker tag api-nutrition:latest ghmaxime88/api-nutrition:latest
+````
+
+3. Push the Image to the Repository
+
+````shell
+docker push ghmaxime88/api-nutrition:latest
+````
+
+4. Pull the Image from the Repository
+
+````shell
+docker pull ghmaxime88/api-nutrition:latest
+````
+
+### Kubernetes
+
+#### Development script
+
+After configuring the Kubernetes client and your Minikube cluster, you can use the following `PowerShell` scripts:
+
+| Fichier                  | Rôle                                                                                                             |
+|--------------------------|------------------------------------------------------------------------------------------------------------------|
+| `buil_docker.ps1`        | Creates a docker image, opens a connection to my repository after creating the docker image and executes a push. |
+| `cleanup_k8s_docker.ps1` | Cleans up the cluster by freeing up Kubernetes resources and deleting docker images                              |
+| `deploy_k8s.ps1`         | Allows you to deploy a docker image in the Minikube cluster                                                      |
+
+#### Kubernetes configuration
+
+For this project, I'm using Hyper-V to deploy a Minikube VM. After installing this VM, you can use the Kubernetes file
+which is currently in the k8s folder. Before you start, you need to check that your Kubernetes client is properly
+configured to your cluster, in this case Minikube if you have installed it. If your client returns docker-desktop, this
+means that your client is connected to this context
+
+````shell
+# check Cluster context 
+kubectl config current-context
+
+# check status 
+kubectl get nodes
+````
+
+Some commands for managing the Minikube cluster
+
+````shell
+minikube status
+minikube start
+minikube stop
+````
+
+To get the URL of the api-nutrition service in the Minikube cluster
+
+````shell
+minikube service api-nutrition --url
+````
+
+Local configuration of access to the nutrition API in the cluster.
+Ajoutez `nutrition.local` dans votre `/etc/hosts` :
+
+```shell
+[Minikube IP] nutrition.local
+```
+
+#### Kubernetes deployment in the Minikube cluster
+
+This section describes how to deploy, manage and remove the `api-nutrition` application on a Kubernetes cluster. The
+configuration files can be found in the `./k8s/` folder. Make sure you have `kubectl` configured and access to cluster
+before running the commands below.
+
+**deploy the application**
+
+````shell
+# Lancement
+kubectl apply -f ./k8s/deployment.yaml
+kubectl apply -f ./k8s/service.yaml
+kubectl apply -f ./k8s/ingress.yaml
+````
+
+**Deleting the application**
+
+```shell
+# L'arrête
+kubectl delete -f ./k8s/deployment.yaml
+kubectl delete -f ./k8s/service.yaml
+kubectl delete ingress api-nutrition-ingress
+```
+
+**Additional controls**  
+Test the application locally via a port-forward :
+
+````shell
+kubectl port-forward svc/api-nutrition 8077:8080
+````
+
+* Local port: 8077 (the port on your local machine where you will access the service).
+* Target port: 8080 (the port of the api-nutrition service in the cluster, as defined in your Service file with
+  port: 8080).
+* Result: You will be able to access the application locally via http://localhost:8077, and traffic will be redirected
+  to the service's port 8080, which relays to the pods' port 8080.
+
+**Configuring the Ingress Controller**  
+To redirect requests to via ingress, you need to create the domain redirection to your IP cluster in your host file.
+
+````shell
+kubectl get ingress
+````
+
+**Configuring cluster access**  
+To configure RBAC (Role-Based Access Control) authorizations :
+
+````shell
+kubectl apply -f ./k8s/rbac.yaml
+````
+
+**Status check**  
+To check the status of services and pods :
+
+````shell
+# List all resources (pods, services, etc.)
+kubectl get all
+
+# List pods
+kubectl get pods
+
+# Displays details of a specific pod
+kubectl describe pod <nom-du-pod>
+
+# Checks service status
+kubectl get services api-nutrition
+
+# Checks that the service is associated with a pod
+kubectl get endpoints api-nutrition
+````
+
+For more details on a specific pod :
+
+````shell
+kubectl describe pod <nom-du-pod>
+````
+
+**Checking the Ingress Controller**
+To check that the Ingress Controller is operational :
+
+````shell
+kubectl get pods -n ingress-nginx
+````
+
+**Consultation des logs**
+To display the application logs :
+
+````shell
+# Display logs for all pods with label app=api-nutrition
+kubectl logs -l app=api-nutrition
+
+# Tracks logs in real time for a specific pod
+kubectl logs -f <nom-du-pod>
+````
+
+```shell
+# Check that the service exists
+kubectl get svc api-nutrition
+
+# Also check that the service is associated with a pod
+kubectl get endpoints api-nutrition
+```
+
+### K8s
+
+📂 Arborescence actuelle du dossier k8s/
+.  
+├── deployment.yaml   
+├── ingress.yaml   
+├── rbac.yaml   
+└── service.yaml
+
+Existing files and their usefulness:
+
+| Fichier            | Rôle                                                                                        |
+|--------------------|---------------------------------------------------------------------------------------------|
+| `deployment.yaml`  | Defines how to deploy your container in a pod: image, ports, volumes, etc.                  |
+| `ingress.yaml`     | Exposes your service via a domain name (e.g., api.local), ideal for browser access.         |
+| `rbac.yaml`        | Configures Role-Based Access Control (RBAC) permissions for the application in the cluster. |
+| `service-api.yaml` | Makes your pod accessible within the cluster (e.g., via ClusterIP, NodePort, etc.).         |
 
 ## Maven Wrapper: How It Works
 

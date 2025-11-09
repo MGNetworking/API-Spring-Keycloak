@@ -1,426 +1,327 @@
 # API Spring Keycloak
 
-User Management API with Profile Extension and Keycloak Integration
-This project is a secure RESTful API built with Spring Boot, designed to handle user account registration, role
-administration through Keycloak, and the extension of custom business data per user.
+API de gestion des utilisateurs avec extension de profil et intégration Keycloak  
+Ce projet est une API RESTful sécurisée développée avec Spring Boot, conçue pour gérer l’enregistrement des comptes
+utilisateurs,
+l’administration des rôles via Keycloak et l’extension de données métier personnalisées pour chaque utilisateur.
 
-⚙️ Core Features
+---
 
-1. User Management (UsersController)
-    * Registers users in Keycloak, which handles identity and authentication.
-    * Upon registration, custom business-related data is created and stored in the API's own database, associated with
-      the user’s unique ID from the Keycloak token.
-    * No personal identity data (name, email, password) is stored in the API; these are managed entirely within
-      Keycloak.
-    * The user’s Keycloak ID (sub from the JWT token) is used to link and manipulate business-related data.
+## ⚙️ Fonctionnalités principales
 
-2. Administration Tools (AdminController)
-    * Allows administrators to retrieve and manage user roles at the realm or client level within Keycloak.
-    * Provides endpoints to assign/remove roles, enable/disable user accounts, and trigger password resets.
-    * Authorization is enforced using roles extracted from the JWT token issued by Keycloak.
+### 1. Gestion des utilisateurs (UsersController)
 
-🔒 Security Model
-Authentication is managed by Keycloak, and all endpoints are protected by role-based access control
-(ROLE_USER_REALM, ROLE_ADMIN_REALM).
-The JWT token is used both for authorization and to resolve the identity of the business data owner.
+* Enregistre les utilisateurs dans Keycloak, qui gère l’identité et l’authentification.
+* Lors de l’inscription, des données métier personnalisées sont créées et stockées dans la base de données de l’API,
+  associées à l’ID unique de l’utilisateur provenant du jeton Keycloak.
+* Aucune donnée d’identité personnelle (nom, e‑mail, mot de passe) n’est stockée dans l’API ; ces informations sont
+  entièrement gérées par Keycloak.
+* L’ID Keycloak de l’utilisateur (`sub` du jeton JWT) est utilisé pour lier et manipuler les données métier
+  correspondantes.
 
-### Sommaire
+### 2. Outils d’administration (AdminController)
 
-* [Run projet](#run-projet)
-* [Run test](#run-test)
-* [Intellij Config](#intellij-config)
-* [Security Configuration](#security-configuration)
-* [Endpoints Main ](#endpoints-main)
-    * [User management](#user-management)
+* Permet aux administrateurs de consulter et gérer les rôles des utilisateurs au niveau du *realm* ou du client dans
+  Keycloak.
+* Fournit des endpoints pour attribuer/supprimer des rôles, activer/désactiver des comptes et déclencher une
+  réinitialisation de mot de passe.
+* L’autorisation est appliquée via les rôles extraits du jeton JWT émis par Keycloak.
+
+---
+
+## 🔒 Modèle de sécurité
+
+L’authentification est gérée par Keycloak et tous les endpoints sont protégés par un contrôle d’accès basé sur les
+rôles (`ROLE_USER_REALM`, `ROLE_ADMIN_REALM`).  
+Le jeton JWT est utilisé à la fois pour l’autorisation et pour identifier le propriétaire des données métier.
+
+---
+
+## Sommaire
+
+* [Exécution du projet](#exécution-du-projet)
+* [Exécution des tests](#exécution-des-tests)
+* [Configuration IntelliJ](#configuration-intellij)
+* [Configuration de la sécurité](#configuration-de-la-sécurité)
+* [Endpoints principaux](#endpoints-principaux)
+    * [Gestion des utilisateurs](#gestion-des-utilisateurs)
     * [Administration](#administration)
-* [Codes de Réponse HTTP](#codes-de-réponse-http)
+* [Codes de réponse HTTP](#codes-de-réponse-http)
 * [Docker](#docker)
-    * [Useful commands](#useful-commands)
-    * [kubernetes](#kubernetes)
-        * [Development Script ](#development-script)
-        * [kubernetes configuration](#kubernetes-configuration)
-        * [kubernetes](#kubernetes-deployment-in-the-minikube-cluster)
-* [Maven Wrapper: How It Works](#maven-wrapper-how-it-works)
-    * [What is Maven Wrapper?](#what-is-maven-wrapper)
-    * [How it works](#how-it-works)
-    * [Benefits](#benefits)
-    * [Common Usage](#common-usage)
+    * [Commandes utiles](#commandes-utiles)
+    * [Kubernetes](#kubernetes)
+        * [Script de développement](#script-de-développement)
+        * [Configuration Kubernetes](#configuration-kubernetes)
+        * [Déploiement dans le cluster Minikube](#déploiement-dans-le-cluster-minikube)
+* [Maven Wrapper : fonctionnement](#maven-wrapper-fonctionnement)
+    * [Qu’est-ce que Maven Wrapper ?](#quest-ce-que-maven-wrapper)
+    * [Fonctionnement](#fonctionnement)
+    * [Avantages](#avantages)
+    * [Utilisation courante](#utilisation-courante)
 
-## Run projet
+---
 
-Launch of Spring without profile
+## Exécution du projet
 
-* Linux :
+Lancement de Spring sans profil
 
-````shell
+### Linux
+
+```shell
 ./mvnw spring-boot:run -Dspring-boot.run.profiles=test
-````
+```
 
-* Windows :
+### Windows
 
-````bash
+```bash
 ./mvnw spring-boot:run -D spring-boot.run.profiles=test
-````
+```
 
-## Run test
+---
 
-Launching unit tests with profile.
+## Exécution des tests
 
-* Linux :
+Lancement des tests unitaires avec profil actif.
 
-````shell
+### Linux
+
+```shell
 ./mvnw clean test -Dspring.profiles.active=test
-````
+```
 
-* Windows :
+### Windows
 
-````bash
+```bash
 ./mvnw clean test -D spring.profiles.active=test
-````
+```
 
-Access browser:
+Accès navigateur:
 
-* [Database H2 Access IP](http://localhost:8080/h2-console)
-* [Doc Swagger IP](http://localhost:8080/swagger-ui/index.html)
+* [Accès base H2](http://localhost:8080/h2-console)
+* [Documentation Swagger](http://localhost:8080/swagger-ui/index.html)
 
-Database H2 password: ``password``
+Mot de passe H2: `password`
 
-## Intellij Config
+---
 
-Here is the configuration required to launch the project in the Intellij IDE
+## Configuration IntelliJ
 
-![Mon image](img/intellij-config-01.png)
+Voici la configuration requise pour exécuter le projet dans l’IDE IntelliJ:
 
-Here is an example of the configuration required to launch a test in the Intellij IDE
+![Configuration IntelliJ](img/intellij-config-01.png)
 
-![Mon image](img/intellij-config-02.png)
+Exemple de configuration pour exécuter un test dans IntelliJ:
 
-## Security Configuration
+![Configuration test IntelliJ](img/intellij-config-02.png)
 
-Security is managed through the `SecurityConfig` class, with the following features:
+---
 
-- **CSRF Disabled**: Since the API is stateless.
-- **JWT Configuration**: Roles are extracted from Keycloak tokens.
-- **Authorization Rules**:
-    - Public access is allowed for authentication and documentation endpoints.
-    - Access to `/api/v1/admin/**` is restricted to users with the `ROLE_ADMIN` authority.
-    - Authentication is required for all other endpoints.
+## Configuration de la sécurité
 
-## Endpoints Main
+La sécurité est gérée via la classe `SecurityConfig` avec les caractéristiques suivantes:
 
-### User management
+* **CSRF désactivé**: l’API est sans état (*stateless*).
+* **Configuration JWT**: les rôles sont extraits des jetons Keycloak.
+* **Règles d’autorisation**:
+    * Accès public pour les endpoints d’authentification et de documentation.
+    * Accès à `/api/v1/admin/**` restreint aux utilisateurs avec l’autorité `ROLE_ADMIN`.
+    * Authentification obligatoire pour tous les autres endpoints.
 
-* class: UsersController
+---
 
-| Endpoint               | Méthode | Description   | Rôle Requis | Codes Réponse                     |
-|------------------------|---------|---------------|-------------|-----------------------------------|
-| /api/v1/users/register | POST    | User creation | ROLE_BASIC  | 201, 400, 401, 403, 409, 500      |
-| /api/v1/users/user     | PUT     | User update   | ROLE_BASIC  | 200, 400, 401, 403, 404, 500      |
-| /api/v1/users/{id}     | DELETE  | User deletion | ROLE_BASIC  | 204, 400, 401, 403, 404, 409, 500 |
-| /api/v1/users/{id}     | GET     | User recovery | ROLE_BASIC  | 200, 400, 401, 403, 404, 500      |
+## Endpoints principaux
 
-📝 Description:
-This controller manages the business data associated with a user.
-It can only be accessed after authentication via Keycloak, guaranteeing secure operations. It can be used to add,
-modify, delete and view data linked to the logged-in user. Each action is protected by appropriate role-based access
-control (`ROLE_BASIC`).
+### Gestion des utilisateurs
+
+*Classe:* `UsersController`
+
+| Endpoint                 | Méthode | Description              | Rôle requis | Codes de réponse                  |
+|--------------------------|---------|--------------------------|-------------|-----------------------------------|
+| `/api/v1/users/register` | POST    | Création d’utilisateur   | ROLE_BASIC  | 201, 400, 401, 403, 409, 500      |
+| `/api/v1/users/user`     | PUT     | Mise à jour utilisateur  | ROLE_BASIC  | 200, 400, 401, 403, 404, 500      |
+| `/api/v1/users/{id}`     | DELETE  | Suppression utilisateur  | ROLE_BASIC  | 204, 400, 401, 403, 404, 409, 500 |
+| `/api/v1/users/{id}`     | GET     | Récupération utilisateur | ROLE_BASIC  | 200, 400, 401, 403, 404, 500      |
+
+📝 **Description:**  
+Ce contrôleur gère les données métier associées à un utilisateur.  
+Il n’est accessible qu’après authentification via Keycloak, garantissant des opérations sécurisées.  
+Il permet d’ajouter, modifier, supprimer et consulter les données liées à l’utilisateur connecté.  
+Chaque action est protégée par un contrôle d’accès basé sur les rôles (`ROLE_BASIC`).
+
+---
 
 ### Administration
 
-* class: AdminController
+*Classe:* `AdminController`
 
-| Endpoint                                                | Méthode | Description                                                 | Rôle Requis      | Codes Réponse                |
-|---------------------------------------------------------|---------|-------------------------------------------------------------|------------------|------------------------------|
-| /api/v1/admin/users                                     | GET     | Lists all users registered in the Keycloak realm.           | ROLE_ADMIN_FRONT | 200, 401, 403,  500          |
-| /api/v1/admin/roles/realm                               | GET     | List of client roles on configured domains                  | ROLE_ADMIN_FRONT | 200, 401, 403,  500          |
-| /api/v1/admin/roles/client/{targetClient}               | GET     | list of any client roles configured on the targeted domains | ROLE_ADMIN_FRONT | 204, 400, 401, 403, 404, 500 |
-| /api/v1/admin/user/{userId}/{targetClient}              | GET     | list of user roles on the targeted client                   | ROLE_ADMIN_FRONT | 204, 400, 401, 403, 404, 500 |
-| /api/v1/admin/user/{userId}/roles/client/{targetClient} | POST    | Add roles to user on the targeted client                    | ROLE_ADMIN_FRONT | 204, 400, 401, 403, 404, 500 |
-| /api/v1/admin/user/{userId}/roles/client/{targetClient} | DELETE  | Removal of the user's role on the targeted client           | ROLE_ADMIN_FRONT | 204, 400, 401, 403, 404, 500 |
-| /api/v1/admin/users/{userId}/roles/realm                | POST    | Add role to user on targeted domain                         | ROLE_ADMIN_FRONT | 204, 400, 401, 403, 404, 500 |
-| /api/v1/admin/users/{userId}/roles/realm                | DELETE  | removal of the user's role on the targeted domain           | ROLE_ADMIN_FRONT | 204, 400, 401, 403, 404, 500 |
+| Endpoint                                                  | Méthode | Description                                               | Rôle requis      | Codes de réponse             |
+|-----------------------------------------------------------|---------|-----------------------------------------------------------|------------------|------------------------------|
+| `/api/v1/admin/users`                                     | GET     | Liste des utilisateurs enregistrés dans le realm Keycloak | ROLE_ADMIN_FRONT | 200, 401, 403, 500           |
+| `/api/v1/admin/roles/realm`                               | GET     | Liste des rôles de domaine configurés                     | ROLE_ADMIN_FRONT | 200, 401, 403, 500           |
+| `/api/v1/admin/roles/client/{targetClient}`               | GET     | Liste des rôles client sur un domaine ciblé               | ROLE_ADMIN_FRONT | 204, 400, 401, 403, 404, 500 |
+| `/api/v1/admin/user/{userId}/{targetClient}`              | GET     | Liste des rôles d’un utilisateur sur un client            | ROLE_ADMIN_FRONT | 204, 400, 401, 403, 404, 500 |
+| `/api/v1/admin/user/{userId}/roles/client/{targetClient}` | POST    | Ajout de rôles à un utilisateur sur un client             | ROLE_ADMIN_FRONT | 204, 400, 401, 403, 404, 500 |
+| `/api/v1/admin/user/{userId}/roles/client/{targetClient}` | DELETE  | Suppression du rôle utilisateur sur un client             | ROLE_ADMIN_FRONT | 204, 400, 401, 403, 404, 500 |
+| `/api/v1/admin/users/{userId}/roles/realm`                | POST    | Ajout d’un rôle sur un domaine                            | ROLE_ADMIN_FRONT | 204, 400, 401, 403, 404, 500 |
+| `/api/v1/admin/users/{userId}/roles/realm`                | DELETE  | Suppression d’un rôle sur un domaine                      | ROLE_ADMIN_FRONT | 204, 400, 401, 403, 404, 500 |
 
-📝 Description:
+📝 **Description:**  
+Ce contrôleur fournit les outils d’administration pour la gestion des rôles utilisateurs dans Keycloak.  
+Chaque action est protégée par un contrôle d’accès basé sur les rôles (`ROLE_ADMIN_FRONT`).
 
-This controller provides administrative tools for managing user roles in Keycloak. Each action is protected by
-appropriate role-based access control (`ROLE_ADMIN_FRONT`).
+---
 
-## Codes de Réponse HTTP
+## Codes de réponse HTTP
 
-The API uses the following standard HTTP status codes:
+| Code | Description                                                    |
+|------|----------------------------------------------------------------|
+| 200  | ✅ **OK** – Requête réussie                                     |
+| 201  | 🆕 **Created** – Ressource créée avec succès                   |
+| 204  | 🚫 **No Content** – Traitement réussi sans contenu à retourner |
+| 400  | ⚠️ **Bad Request** – Requête invalide ou données incorrectes   |
+| 401  | 🔒 **Unauthorized** – Authentification requise ou échouée      |
+| 404  | ❌ **Not Found** – Ressource inexistante                        |
+| 409  | ⚔️ **Conflict** – Conflit (ex : doublon)                       |
+| 500  | 💥 **Internal Server Error** – Erreur interne du serveur       |
 
-| Code | Description                                                                      |
-|------|----------------------------------------------------------------------------------|
-| 200  | **OK** - The request was successful                                              |
-| 201  | **Created** - Successfully created resource                                      |
-| 204  | **No Content** - Request processed successfully but no content to return         |
-| 400  | **Bad Request** - The request contains errors or invalid data                    |
-| 401  | **Unauthorized** - Authentication required or authentication failed              |
-| 404  | **Not Found** - The requested resource does not exist                            |
-| 409  | **Conflict** - The request cannot be processed due to a conflict (ex: duplicate) |
-| 500  | **Internal Server Error** - Unexpected server-side error                         |
+---
 
 ## Docker
 
-### Useful commands
+### Commandes utiles
 
-Below are example commands to build and run the Docker image of the project in a `PowerShell` or similar terminal.
-
-````shell
+```shell
 docker build -t api-nutrition:latest .
-
-# Display logs in the launch terminal
 docker run --name api-nutrition -p 8080:8080 -e SPRING_PROFILES_ACTIVE=test api-nutrition:latest
-
-# detach mode
 docker run -d --name api-nutrition -p 8080:8080 -e SPRING_PROFILES_ACTIVE=test api-nutrition:latest
-````
+```
 
-Container Management Commands
+Gestion des conteneurs:
 
-````shell
-# View container logs in real-time
+```shell
 docker logs -f api-nutrition
-
-# Start an existing container
 docker start api-nutrition
-
-# Stop and remove a container
 docker stop api-nutrition && docker rm api-nutrition
-
-# Remove Docker images
 docker rmi api-nutrition:latest
 docker rmi ghmaxime88/api-nutrition:latest
-````
+```
 
-Push to a Docker Repository
+Publication sur Docker Hub:
 
-1. Log in to Docker Hub
-
-````shell
+```shell
 docker login
-````
-
-2. Tag the Image
-
-````shell
-# Format: docker tag <local-image:tag> <username>/<repository:tag>
 docker tag api-nutrition:latest ghmaxime88/api-nutrition:latest
-````
-
-3. Push the Image to the Repository
-
-````shell
 docker push ghmaxime88/api-nutrition:latest
-````
-
-4. Pull the Image from the Repository
-
-````shell
 docker pull ghmaxime88/api-nutrition:latest
-````
+```
 
-### Kubernetes
+---
 
-#### Development script
+## Kubernetes
 
-After configuring the Kubernetes client and your Minikube cluster, you can use the following `PowerShell` scripts:
+### Script de développement
 
-| Fichier                  | Rôle                                                                                                             |
-|--------------------------|------------------------------------------------------------------------------------------------------------------|
-| `buil_docker.ps1`        | Creates a docker image, opens a connection to my repository after creating the docker image and executes a push. |
-| `cleanup_k8s_docker.ps1` | Cleans up the cluster by freeing up Kubernetes resources and deleting docker images                              |
-| `deploy_k8s.ps1`         | Allows you to deploy a docker image in the Minikube cluster                                                      |
+| Fichier                  | Rôle                                                        |
+|--------------------------|-------------------------------------------------------------|
+| `build_docker.ps1`       | Crée une image Docker et la pousse dans le dépôt            |
+| `cleanup_k8s_docker.ps1` | Nettoie le cluster Kubernetes et supprime les images Docker |
+| `deploy_k8s.ps1`         | Déploie l’image Docker dans le cluster Minikube             |
 
-#### Kubernetes configuration
+### Configuration Kubernetes
 
-For this project, I'm using Hyper-V to deploy a Minikube VM. After installing this VM, you can use the Kubernetes file
-which is currently in the k8s folder. Before you start, you need to check that your Kubernetes client is properly
-configured to your cluster, in this case Minikube if you have installed it. If your client returns docker-desktop, this
-means that your client is connected to this context
+Ce projet utilise Hyper‑V pour exécuter une VM Minikube.  
+Avant de lancer le déploiement, vérifiez votre contexte Kubernetes:
 
-````shell
-# check Cluster context 
+```shell
 kubectl config current-context
-
-# check status 
 kubectl get nodes
-````
+```
 
-Some commands for managing the Minikube cluster
+Commandes utiles:
 
-````shell
+```shell
 minikube status
 minikube start
 minikube stop
-````
-
-To get the URL of the api-nutrition service in the Minikube cluster
-
-````shell
 minikube service api-nutrition --url
-````
-
-Local configuration of access to the nutrition API in the cluster.
-Ajoutez `nutrition.local` dans votre `/etc/hosts` :
-
-```shell
-[Minikube IP] nutrition.local
 ```
 
-#### Kubernetes deployment in the Minikube cluster
+Ajoutez `nutrition.local` dans `/etc/hosts`:
 
-This section describes how to deploy, manage and remove the `api-nutrition` application on a Kubernetes cluster. The
-configuration files can be found in the `./k8s/` folder. Make sure you have `kubectl` configured and access to cluster
-before running the commands below.
+```shell
+[IP_MINIKUBE] nutrition.local
+```
 
-**deploy the application**
+### Déploiement dans le cluster Minikube
 
-````shell
-# Lancement
+```shell
 kubectl apply -f ./k8s/deployment.yaml
 kubectl apply -f ./k8s/service.yaml
 kubectl apply -f ./k8s/ingress.yaml
-````
+```
 
-**Deleting the application**
+Suppression:
 
 ```shell
-# L'arrête
 kubectl delete -f ./k8s/deployment.yaml
 kubectl delete -f ./k8s/service.yaml
 kubectl delete ingress api-nutrition-ingress
 ```
 
-**Additional controls**  
-Test the application locally via a port-forward :
-
-````shell
-kubectl port-forward svc/api-nutrition 8077:8080
-````
-
-* Local port: 8077 (the port on your local machine where you will access the service).
-* Target port: 8080 (the port of the api-nutrition service in the cluster, as defined in your Service file with
-  port: 8080).
-* Result: You will be able to access the application locally via http://localhost:8077, and traffic will be redirected
-  to the service's port 8080, which relays to the pods' port 8080.
-
-**Configuring the Ingress Controller**  
-To redirect requests to via ingress, you need to create the domain redirection to your IP cluster in your host file.
-
-````shell
-kubectl get ingress
-````
-
-**Configuring cluster access**  
-To configure RBAC (Role-Based Access Control) authorizations :
-
-````shell
-kubectl apply -f ./k8s/rbac.yaml
-````
-
-**Status check**  
-To check the status of services and pods :
-
-````shell
-# List all resources (pods, services, etc.)
-kubectl get all
-
-# List pods
-kubectl get pods
-
-# Displays details of a specific pod
-kubectl describe pod <nom-du-pod>
-
-# Checks service status
-kubectl get services api-nutrition
-
-# Checks that the service is associated with a pod
-kubectl get endpoints api-nutrition
-````
-
-For more details on a specific pod :
-
-````shell
-kubectl describe pod <nom-du-pod>
-````
-
-**Checking the Ingress Controller**
-To check that the Ingress Controller is operational :
-
-````shell
-kubectl get pods -n ingress-nginx
-````
-
-**Consultation des logs**
-To display the application logs :
-
-````shell
-# Display logs for all pods with label app=api-nutrition
-kubectl logs -l app=api-nutrition
-
-# Tracks logs in real time for a specific pod
-kubectl logs -f <nom-du-pod>
-````
+Contrôles additionnels:
 
 ```shell
-# Check that the service exists
-kubectl get svc api-nutrition
-
-# Also check that the service is associated with a pod
-kubectl get endpoints api-nutrition
+kubectl port-forward svc/api-nutrition 8077:8080
+kubectl get all
+kubectl describe pod <nom-du-pod>
+kubectl get services api-nutrition
+kubectl logs -l app=api-nutrition
+kubectl get pods -n ingress-nginx
 ```
 
-### K8s
+### Structure du dossier `k8s/`
 
-📂 Arborescence actuelle du dossier k8s/
-.  
-├── deployment.yaml   
-├── ingress.yaml   
-├── rbac.yaml   
+```
+.
+├── deployment.yaml
+├── ingress.yaml
+├── rbac.yaml
 └── service.yaml
+```
 
-Existing files and their usefulness:
+| Fichier           | Rôle                                                        |
+|-------------------|-------------------------------------------------------------|
+| `deployment.yaml` | Définit le déploiement du conteneur (image, ports, volumes) |
+| `ingress.yaml`    | Expose le service via un domaine (ex : api.local)           |
+| `rbac.yaml`       | Configure les permissions RBAC                              |
+| `service.yaml`    | Rend le pod accessible dans le cluster                      |
 
-| Fichier            | Rôle                                                                                        |
-|--------------------|---------------------------------------------------------------------------------------------|
-| `deployment.yaml`  | Defines how to deploy your container in a pod: image, ports, volumes, etc.                  |
-| `ingress.yaml`     | Exposes your service via a domain name (e.g., api.local), ideal for browser access.         |
-| `rbac.yaml`        | Configures Role-Based Access Control (RBAC) permissions for the application in the cluster. |
-| `service-api.yaml` | Makes your pod accessible within the cluster (e.g., via ClusterIP, NodePort, etc.).         |
+---
 
-## Maven Wrapper: How It Works
+## Maven Wrapper : fonctionnement
 
-### What is Maven Wrapper?
+### Qu’est-ce que Maven Wrapper ?
 
-Maven Wrapper (`mvnw`) is a script that allows you to run Maven commands without having Maven installed on your system.
+Le **Maven Wrapper** (`mvnw`) est un script permettant d’exécuter Maven sans l’avoir installé sur le système.
 
-## How it works
+### Fonctionnement
 
-When you execute the `./mvnw` command (or `mvnw.cmd` on Windows):
+1. Le script vérifie si Maven est présent dans le répertoire du projet (`.mvn/wrapper/`).
+2. Si non, il télécharge automatiquement la version spécifiée.
+3. Il exécute ensuite la commande Maven demandée.
 
-1. The Maven Wrapper script checks if Maven is already available in a local directory of the project (typically
-   `.mvn/wrapper/`)
+### JDK
 
-2. If Maven is not found locally, the script automatically downloads the appropriate version of Maven specified in your
-   project
+* Maven Wrapper télécharge Maven, **pas le JDK**.
+* Un JDK reste nécessaire pour compiler et exécuter le code Java.
 
-3. Then, the script executes the Maven command you requested using this downloaded version
+### Avantages
 
-## What about JDK?
+* Uniformise la version Maven dans l’équipe.
+* Simplifie l’intégration continue.
+* Facilite l’onboarding des nouveaux développeurs.
 
-* The Maven Wrapper downloads Maven, but not the JDK
-* A JDK is still necessary to compile and run Java code
-* If you don't have a JDK installed, you'll get an error like "JAVA_HOME is not set" or "java command not found"
-
-## Benefits
-
-* Ensures everyone on the team uses the same Maven version
-* No need to install Maven globally on your machine
-* Makes project setup easier for new developers
-* Perfect for CI/CD pipelines where you want to control the Maven version
-
-## Common Usage
+### Utilisation courante
 
 ```bash
 # Linux/Mac
@@ -430,5 +331,4 @@ When you execute the `./mvnw` command (or `mvnw.cmd` on Windows):
 mvnw.cmd clean install
 ```
 
-In a Spring development environment, you'll still need to install a JDK, but not necessarily Maven thanks to the
-wrapper.
+---
